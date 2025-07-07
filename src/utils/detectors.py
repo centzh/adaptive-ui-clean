@@ -18,6 +18,7 @@ import pandas as pd
 from ultralytics import YOLO, RTDETR
 from transformers import pipeline
 import ipdb
+import cv2
 from PIL import ImageDraw
  
 class SaliencyDetector:
@@ -75,8 +76,23 @@ class SaliencyDetector:
         return safety_social_map
 
     def get_aesthetics_map(self, frame: Image.Image):
-        pass
+        """
+        Return a binary saliency map highlighting areas of high colour and edge intensity.
 
+        Parameters
+        ----------
+        frame: Current video frame.
+
+        Returns:
+        --------
+        sal_map: Binary saliency map with the same dimensions as the frame.
+        """
+        w, h = frame.size
+        edge_map = SaliencyDetector._get_edges_map(frame)
+        color_map = SaliencyDetector._get_color_map(frame)
+        aesthetics_map = np.maximum(edge_map, color_map)
+        return aesthetics_map
+   
     def get_functionality_map(self, 
                               frame: Image.Image, 
                               frame_path: str, 
@@ -134,11 +150,62 @@ class SaliencyDetector:
         img = Image.fromarray(saliency_map)
         img.save(save_path)
 
-    def combine_maps(self):
-        pass
+    def get_combined_map(self, frame, frame_path, eye_gazes):
+        """
+        Returns a binary saliency map representing areas that should be avoided, 
+        based on all contextual factors: functionality, aesthetics, social acceptability and safety.
+
+        Parameters
+        ----------
+        frame: Current video frame.
+        frame_path: Path to the current video frame.
+        eye_gazes: Dataframe containing the location of eyegazes recorded for each frame.
+
+        Returns
+        -------
+        combined_map: Combined functionality, aesthetics, social acceptability and safety.
+        """
+        aesthetics_map = self.get_aesthetics_map(frame)
+        safety_and_social_acceptability_map = self.get_safety_and_social_acceptability_map(frame)
+        functionality_map = self.get_functionality_map(frame, frame_path, eye_gazes)
+        self.save_map(aesthetics_map, "aesthetics.png")
+        self.save_map(safety_and_social_acceptability_map, "safety_accepetability.png")
+        self.save_map(functionality_map, "functionality.png")
+        combined_map = np.max(
+            np.stack([aesthetics_map, safety_and_social_acceptability_map, functionality_map]),
+            axis=0
+        )
+        return combined_map
 
     def save_combined_map(self):
         pass
+
+    @staticmethod
+    def _get_edges_map(frame: Image.Image):
+        """
+        Detect edges in the frame using Scharr operator
+        """
+        gray_frame = np.array(frame.convert("L"))
+
+        # Get Scharr gradients
+        grad_x = cv2.Scharr(gray_frame, cv2.CV_32F, 1, 0)
+        grad_y = cv2.Scharr(gray_frame, cv2.CV_32F, 0, 1)
+
+        # Get gradient magnitude
+        edge_intensity = cv2.magnitude(grad_x, grad_y)
+        
+        # Normalise to 0-255 and convert to uint8
+        edge_map = cv2.normalize(edge_intensity, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+        return edge_map
+    
+    @staticmethod
+    def _get_color_map(frame: Image.Image):
+        """
+        Extract the saturation channel from the frame as a grayscale saliency map
+        """
+        hsv_frame =  cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2HSV)
+        color_map = hsv_frame[:, :, 1]
+        return color_map
     
     @staticmethod
     def _get_video_id(frame_path: str):
@@ -181,15 +248,9 @@ class SaliencyDetector:
 if __name__ == "__main__":
     detector = SaliencyDetector()
 
-    frame_path = "data/video_frames/loc2_script5_seq5_rec1/frame-200.jpg"
+    frame_path = "data/video_frames/loc3_script1_seq7_rec1/frame-510.jpg"
     frame = Image.open(frame_path)
-
-    save_path = "safety_social_acceptability_map.png"
-    safety_map = detector.get_safety_and_social_acceptability_map(frame)
-    detector.save_map(safety_map, save_path)
-
-    save_path = "functionality_map.png"
     eye_gaze_path = "data/eye_gaze_img_coords.csv"
     eye_gazes = pd.read_csv(eye_gaze_path)
-    safety_map = detector.get_functionality_map(frame, frame_path, eye_gazes)
-    detector.save_map(safety_map, save_path)
+    combined_map = detector.get_combined_map(frame, frame_path, eye_gazes)
+    detector.save_map(combined_map, "combined.png")
