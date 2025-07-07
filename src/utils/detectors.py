@@ -15,14 +15,14 @@ Usage:
 import numpy as np
 from PIL import Image
 import pandas as pd
-from ultralytics import YOLO
+from ultralytics import YOLO, RTDETR
 from transformers import pipeline
 import ipdb
 from PIL import ImageDraw
  
 class SaliencyDetector:
     def __init__(self,
-                 ood_model_path: str = "yolo11n.pt",
+                 ood_model_path: str = "yolov8x-worldv2.pt",
                  seg_model_path: str = "nvidia/segformer-b5-finetuned-ade-640-640"
         ):
         """
@@ -31,7 +31,7 @@ class SaliencyDetector:
         Parameters
         ----------
         ood_model_path: Path to YOLO model for object detection.
-            Default is "yolo11n.pt".
+            Default is "yolov8x-worldv2.pt".
         seg_model_path HuggingFace model for image segmentation.
             Default is "nvidia/segformer-b5-finetuned-ade-640-640".
         """
@@ -58,7 +58,7 @@ class SaliencyDetector:
         -------
         sal_map: Binary saliency map with the same dimensions as the frame.
         """
-        h, w = frame.size
+        w, h = frame.size
         safety_social_map = np.zeros((h, w), dtype=bool)
         
         # Run segmentation on the frame
@@ -114,14 +114,6 @@ class SaliencyDetector:
         frame_id = SaliencyDetector._get_frame_id(frame_path)
         gaze_x, gaze_y = SaliencyDetector._get_eye_gaze_loc(eye_gazes, video_id, frame_id)
 
-                
-        # Draw gaze point on frame
-        draw = ImageDraw.Draw(frame)
-        draw.ellipse(
-            [(gaze_x - 5, gaze_y - 5), (gaze_x + 5, gaze_y + 5)],
-            fill='red'
-        )
-
         # Save image with gaze point
         frame.save("prediction_with_gaze.jpg")
 
@@ -165,25 +157,35 @@ class SaliencyDetector:
     @staticmethod
     def _get_eye_gaze_loc(eye_gazes: pd.DataFrame, video_id: str, frame_id: str):
         video_frame = f"{video_id}_frame_{frame_id}"
+        print(video_frame)
         row = eye_gazes[eye_gazes["frame_id"]==video_frame]
         x, y = int(row['x'].values[0]), int(row['y'].values[0])
+        print(x, y)
         return x, y
 
     @staticmethod
     def _find_closest_object(obj_coords, gaze_point, distance_thresh: float):
-        closest_point = min(obj_coords, key=lambda p: ((p[0] + p[2])/2 - gaze_point[0])**2 + ((p[1]+p[3])/2 - gaze_point[1])**2)
-        closest_point = [int(coord.item()) for coord in closest_point]
-        if (closest_point[0] - gaze_point[0])**2 + (closest_point[1] - gaze_point[1])**2 > distance_thresh:
+        def get_center(bbox):
+            return ((bbox[0] + bbox[2])/2, (bbox[1] + bbox[3])/2)
+        
+        def distance_to_gaze(bbox):
+            center = get_center(bbox)
+            return ((center[0] - gaze_point[0])**2 + (center[1] - gaze_point[1])**2)
+        
+        closest_bbox = min(obj_coords, key=distance_to_gaze)
+        
+        # Check if closest object is within threshold
+        if distance_to_gaze(closest_bbox) > distance_thresh**2:  
             return None
-        return closest_point
+        
+        return [int(coord.item()) for coord in closest_bbox]
  
-    
 
 # Example usage
 if __name__ == "__main__":
     detector = SaliencyDetector()
 
-    frame_path = "data/video_frames/loc3_script1_seq5_rec1/frame-660.jpg"
+    frame_path = "data/video_frames/loc1_script1_seq1_rec1/frame-10.jpg"
     frame = Image.open(frame_path)
 
     # save_path = "safety_social_acceptability_map.png"
