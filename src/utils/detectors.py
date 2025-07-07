@@ -98,7 +98,6 @@ class SaliencyDetector:
         """
         # Run object detection on the frame 
         pred = self.ood_model(frame)[0]
-        pred.save(filename="prediction.jpg")
         
         # Extract bounding box coordinates for detected objects
         bboxes = pred.boxes
@@ -113,9 +112,6 @@ class SaliencyDetector:
         video_id = SaliencyDetector._get_video_id(frame_path)
         frame_id = SaliencyDetector._get_frame_id(frame_path)
         gaze_x, gaze_y = SaliencyDetector._get_eye_gaze_loc(eye_gazes, video_id, frame_id)
-
-        # Save image with gaze point
-        frame.save("prediction_with_gaze.jpg")
 
         # Find object (midpoint) that is closest to the gaze point (1/4 of image width, by default)
         distance_thresh = w//4
@@ -185,12 +181,12 @@ class SaliencyDetector:
 if __name__ == "__main__":
     detector = SaliencyDetector()
 
-    frame_path = "data/video_frames/loc1_script1_seq1_rec1/frame-10.jpg"
+    frame_path = "data/video_frames/loc2_script5_seq5_rec1/frame-200.jpg"
     frame = Image.open(frame_path)
 
-    # save_path = "safety_social_acceptability_map.png"
-    # safety_map = detector.get_safety_and_social_acceptability_map(frame)
-    # detector.save_map(safety_map, save_path)
+    save_path = "safety_social_acceptability_map.png"
+    safety_map = detector.get_safety_and_social_acceptability_map(frame)
+    detector.save_map(safety_map, save_path)
 
     save_path = "functionality_map.png"
     eye_gaze_path = "data/eye_gaze_img_coords.csv"
