@@ -133,13 +133,13 @@ class SaliencyDetector:
         distance_thresh = w//4
         closest_object = SaliencyDetector._find_closest_object(obj_coords, (gaze_x, gaze_y), distance_thresh)
 
+        functionality_map = np.zeros((h, w), dtype=np.uint8)
         # Closest object was located at a distance greater than the threshold 
         if closest_object is None:
-            return None
+            return functionality_map # Return all zeros, if no object was found
         
         # Mark the bounding box of the closest object as white, representing to avoid
         x1, y1, x2, y2 = closest_object
-        functionality_map = np.zeros((h, w), dtype=np.uint8)
         functionality_map[y1:y2, x1:x2] = 255
         return functionality_map
 
@@ -168,9 +168,6 @@ class SaliencyDetector:
         aesthetics_map = self.get_aesthetics_map(frame)
         safety_and_social_acceptability_map = self.get_safety_and_social_acceptability_map(frame)
         functionality_map = self.get_functionality_map(frame, frame_path, eye_gazes)
-        self.save_map(aesthetics_map, "aesthetics.png")
-        self.save_map(safety_and_social_acceptability_map, "safety_accepetability.png")
-        self.save_map(functionality_map, "functionality.png")
         combined_map = np.max(
             np.stack([aesthetics_map, safety_and_social_acceptability_map, functionality_map]),
             axis=0
