@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
 import random
-import os
-from PIL import Image
+from PIL import Image, ImageDraw
 from detectors import SaliencyDetector
 from seed import set_seed
 from pathlib import Path
@@ -66,6 +65,10 @@ class InstanceGenerator:
 
         video_id = InstanceGenerator._get_video_id(frame_path)
         frame_id = InstanceGenerator._get_frame_id(frame_path)
+
+        # Plot eye gaze points on the overlayed frame (returns a PIL Image)
+        output_frame = self._plot_eye_gaze(frame_arr, eye_gazes, video_id, frame_id)
+
         if task_id == 1 or task_id == 2:
             save_name = f"frame-{frame_id}-{int(score)}-{label}.png"
         elif task_id == 3:
@@ -75,9 +78,45 @@ class InstanceGenerator:
         output_dir = Path(output_dir_path)
         output_dir.mkdir(parents=True, exist_ok=True)
         save_path = output_dir / save_name
-        Image.fromarray(frame_arr).save(save_path)
+        output_frame.save(save_path)
 
         return {"score":score, "label":label, "save_path": save_path}
+    
+    @staticmethod
+    def _plot_eye_gaze(frame_arr: np.ndarray, eye_gazes: pd.DataFrame, video_id: str, frame_id: str):
+        """
+        Plot eye gaze points (from SaliencyDetector._get_eye_gaze_loc) on the image array using PIL.
+
+        Parameters
+        ----------
+        frame_arr : np.ndarray
+            The image array with red overlay.
+        eye_gazes : pd.DataFrame
+            The DataFrame containing eye gaze data.
+        video_id : str
+            Video identifier.
+        frame_id : str
+            Frame identifier.
+
+        Returns
+        -------
+        PIL.Image.Image
+            The image with gaze points plotted as small blue circles.
+        """
+        # Convert numpy array back to PIL Image for drawing
+        img = Image.fromarray(frame_arr)
+        draw = ImageDraw.Draw(img)
+
+        # Get gaze x, y coordinates (assuming these are lists or arrays)
+        gaze_x, gaze_y = SaliencyDetector._get_eye_gaze_loc(eye_gazes, video_id, frame_id)
+
+        # Draw small blue circle for gaze point
+        radius = 30
+        left_up = (gaze_x - radius, gaze_y - radius)
+        right_down = (gaze_x + radius, gaze_y + radius)
+        draw.ellipse([left_up, right_down], fill=(255, 255, 0))
+
+        return img
 
     @staticmethod
     def _get_video_id(frame_path: Path):
@@ -177,6 +216,7 @@ class LocationSampler:
         top_entries = [(i, j, scores[i, j]) for i, j in top_indices]
         i, j, score = random.choice(top_entries)
         return i, j, score, label
+    
 
 class OverlayRenderer:
     """

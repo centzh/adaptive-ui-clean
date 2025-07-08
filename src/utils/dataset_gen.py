@@ -1,7 +1,7 @@
-import os
 import json
 import random
 import numpy as np
+import pandas as pd
 import ipdb
 from sklearn.model_selection import train_test_split
 from PIL import Image
@@ -13,17 +13,17 @@ from pathlib import Path
 class DatasetGenerator:
     def __init__(
         self,
-        processed_path,
-        video_path,
+        processed_path: Path,
+        video_path: Path,
         detector,
         task=2,
         element_size=400,
         step_size=20,
         seed=42,
-        test_size=0.3
+        test_size=0.01
     ):
-        self.processed_path = processed_path
-        self.video_path = video_path
+        self.processed_path = Path(processed_path)
+        self.video_path = Path(video_path)
         self.task = task
         self.seed = seed
         self.test_size = test_size
@@ -36,9 +36,8 @@ class DatasetGenerator:
         
     def _get_videos(self):
         videos = [
-            d for d in os.listdir(self.video_path) 
-            if os.path.isdir(os.path.join(self.video_path, d)) 
-            and os.listdir(os.path.join(self.video_path, d))
+            d.name for d in self.video_path.iterdir()
+            if d.is_dir() and any(d.iterdir())
         ]
         return videos
     
@@ -57,26 +56,38 @@ class DatasetGenerator:
         dataset = []
         
         for video in videos:
-            frame_videos_path = os.path.join(self.video_path, video)
-            
-            for frame_id in os.listdir(frame_videos_path):
-                frame_path = os.path.join(frame_videos_path, frame_id)
+            frame_videos_path = self.video_path / video
+            all_frames = sorted([f for f in frame_videos_path.iterdir() if f.is_file()])
+            sampled_frames = random.sample(all_frames, min(1, len(all_frames)))
+
+            for frame_path in sampled_frames:
+                if not frame_path.is_file():
+                    continue
                 frame = Image.open(frame_path)
-                ipdb.set_trace()
                 
                 # Use instance generator to generate overlayed image and get label
                 if self.task == 1 or self.task == 2:
                     generated_instance_data = self.instance_generator.generate(frame, frame_path, eye_gaze_data, self.task)
-                    ipdb.set_trace()
                     dataset.append({
-                        "frames_file_names": [frame_path, generated_instance_data["save_path"]],
+                        "frames_file_names": [str(frame_path), str(generated_instance_data["save_path"])],
                         "label": generated_instance_data["label"]
                     })
+                   
+                elif self.task == 3:
+                    generated_instance_1_data = self.instance_generator.generate(frame, frame_path, eye_gaze_data, self.task)
+                    generated_instance_2_data = self.instance_generator.generate(frame, frame_path, eye_gaze_data, self.task)
+                    instances = [generated_instance_1_data, generated_instance_2_data]
+                    min_index = min(enumerate(instances), key=lambda x: x[1]["score"])[0] + 1
+
+                    dataset.append({
+                        "frames_file_names": [str(frame_path), str(generated_instance_1_data["save_path"]), str(generated_instance_2_data["save_path"])],
+                        "label": min_index
+                    })
                     ipdb.set_trace()
-                else:
-                    pass
         
         if save_metadata_path:
+            save_metadata_path = Path(save_metadata_path)
+            save_metadata_path.parent.mkdir(parents=True, exist_ok=True)
             with open(save_metadata_path, "w") as f:
                 for item in dataset:
                     f.write(json.dumps(item) + "\n")
@@ -85,16 +96,25 @@ class DatasetGenerator:
         return dataset
 
 if __name__ == "__main__":
-    
     processed_path = Path("data") / "generated_overlays"
     video_path = Path("data") / "video_frames"
+    eye_gaze_path = Path("data") / "eye_gaze_coords.csv"
+    eye_gazes = pd.read_csv(eye_gaze_path)
 
-    task_id = 2
+    task_id = 3
     detector = SaliencyDetector()
     dataset_gen = DatasetGenerator(processed_path, video_path, detector, task=task_id, seed=42)
     
-    # Generate train dataset metadata and files
-    dataset_gen.generate_dataset(split="train", eye_gaze_data=None, save_metadata_path="data/train-task-{task_id}.jsonl")
-    
-    # # Generate test dataset metadata and files
-    # dataset_gen.generate_dataset(split="test", eye_gaze_data=None, save_metadata_path="data/test-task-{task_id}.jsonl")
+    # # Generate train dataset metadata and files
+    # dataset_gen.generate_dataset(
+    #     split="train",
+    #     eye_gaze_data=eye_gazes,
+    #     save_metadata_path=f"data/train-task-{task_id}.jsonl"
+    # )
+
+    # Uncomment to generate test set
+    dataset_gen.generate_dataset(
+        split="test",
+        eye_gaze_data=eye_gazes,
+        save_metadata_path=f"data/test-task-{task_id}.jsonl"
+    )
