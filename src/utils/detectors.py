@@ -15,11 +15,9 @@ Usage:
 import numpy as np
 from PIL import Image
 import pandas as pd
-from ultralytics import YOLO, RTDETR
+from ultralytics import YOLO
 from transformers import pipeline
-import ipdb
 import cv2
-from PIL import ImageDraw
  
 class SaliencyDetector:
     def __init__(self,
@@ -142,10 +140,7 @@ class SaliencyDetector:
         x1, y1, x2, y2 = closest_object
         functionality_map[y1:y2, x1:x2] = 255
         return functionality_map
-
-    def get_all_maps(self):
-        pass
-
+    
     def save_map(self, saliency_map: np.ndarray, save_path: str):
         img = Image.fromarray(saliency_map)
         img.save(save_path)
@@ -173,9 +168,6 @@ class SaliencyDetector:
             axis=0
         )
         return combined_map
-
-    def save_combined_map(self):
-        pass
 
     @staticmethod
     def _get_edges_map(frame: Image.Image):
@@ -240,7 +232,6 @@ class SaliencyDetector:
         
         return [int(coord.item()) for coord in closest_bbox]
  
-
 # Example usage
 if __name__ == "__main__":
     detector = SaliencyDetector()
