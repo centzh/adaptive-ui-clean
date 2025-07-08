@@ -9,6 +9,18 @@ from seed import set_seed
 set_seed(42)
 
 class InstanceGenerator:
+    """
+    Generates overlay training instances from video frames and saliency maps.
+
+    Parameters
+    ----------
+    detector : SaliencyDetector
+        Object used to compute saliency or functionality maps.
+    element_size : int, optional
+        Size of the square overlay region (default is 400).
+    step_size : int, optional
+        Stride used when scanning across the image (default is 20).
+    """
     def __init__(self, detector, element_size=400, step_size=20):
         self.detector = detector
         self.element_size = element_size
@@ -17,6 +29,23 @@ class InstanceGenerator:
         self.renderer = OverlayRenderer(element_size, step_size)
 
     def generate(self, frame: Image.Image, frame_path: str, eye_gazes: pd.DataFrame, task_id: int):
+        """
+        Generates and saves an overlay frame with a red square on a selected region.
+
+        Parameters
+        ----------
+        frame : PIL.Image.Image
+            The input image frame.
+        frame_path : str
+            Path to the original frame image.
+        eye_gazes : pandas.DataFrame
+            DataFrame containing eye gaze coordinates.
+        task_id : int
+            Task identifier: 
+            1 = visibility, functionality only, 
+            2 = visibility, all factors, 
+            3 = placement, all factors.
+        """
         # Get combined saliency map
         if task_id == 1:
             saliency_map = self.detector.get_functionality_map(frame, frame_path, eye_gazes)
@@ -57,11 +86,34 @@ class InstanceGenerator:
         return frame_id
 
 class ImageScorer:
+    """
+    Computes average saliency scores across sliding windows on an image.
+
+    Parameters
+    ----------
+    element_size : int
+        Size of the window to compute scores over.
+    step_size : int
+        Stride used to move the window.
+    """
     def __init__(self, element_size: int, step_size: int):
         self.element_size = element_size
         self.step_size = step_size
 
     def get_scores(self, image: np.ndarray):
+        """
+        Computes saliency scores using mean pixel values in patches.
+
+        Parameters
+        ----------
+        image : np.ndarray
+            2D grayscale saliency or heatmap image.
+        
+        Returns
+        -------
+        np.ndarray
+            A 2D array of average scores for each patch.
+        """
         h, w = image.shape
         h_out = (h - self.element_size) // self.step_size + 1
         w_out = (w - self.element_size) // self.step_size + 1
@@ -76,10 +128,36 @@ class ImageScorer:
         return scores
 
 class LocationSampler:
+    """
+    Selects a location in the saliency score map based on task.
+
+    Parameters
+    ----------
+    task_id : int
+            Task identifier: 
+            1 = visibility, functionality only, 
+            2 = visibility, all factors, 
+            3 = placement, all factors.
+    """
     def __init__(self, task: int):
         self.task = task
 
     def choose_location(self, scores: np.ndarray):
+        """
+        Chooses a patch location either:
+        1) Based on percentile thresholding -- Tasks 1, 2, or, 
+        2) Randomly -- Task 3
+
+        Parameters
+        ----------
+        scores : np.ndarray
+            2D array of saliency scores.
+
+        Returns
+        -------
+        tuple of (int, int, float, str or None)
+            The row index, column index, selected score, and label (for tasks 1/2).
+        """
         label = None
         if self.task == 1 or self.task == 2:
             label = "yes" if random.random() < 0.5 else "no"
@@ -99,11 +177,38 @@ class LocationSampler:
         return i, j, score, label
 
 class OverlayRenderer:
+    """
+    Renders red overlays on image arrays at specified patch locations.
+
+    Parameters
+    ----------
+    element_size : int
+        Size of the square overlay region.
+    step_size : int
+        Stride used to locate overlay regions.
+    """
     def __init__(self, element_size: int, step_size: int):
         self.element_size = element_size
         self.step_size = step_size
 
     def overlay(self, frame_arr: np.ndarray, i: int, j: int):
+        """
+        Overlays a red square onto the image at (i, j) window index.
+
+        Parameters
+        ----------
+        frame_arr : np.ndarray
+            The original RGB image as a NumPy array.
+        i : int
+            Row index in the score map.
+        j : int
+            Column index in the score map.
+
+        Returns
+        -------
+        np.ndarray
+            The image with a red square overlay.
+        """
         top = i * self.step_size
         left = j * self.step_size
         bottom = top + self.element_size
