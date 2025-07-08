@@ -21,16 +21,17 @@ class InstanceGenerator:
     step_size : int, optional
         Stride used when scanning across the image (default is 20).
     """
-    def __init__(self, detector, element_size=400, step_size=20):
+    def __init__(self, detector, element_height=319, element_width=663, step_size=20):
         self.detector = detector
-        self.element_size = element_size
+        self.element_height = element_height
+        self.element_width = element_width
         self.step_size = step_size
-        self.scorer = ImageScorer(element_size, step_size)
-        self.renderer = OverlayRenderer(element_size, step_size)
+        self.scorer = ImageScorer(element_height, element_width, step_size)
+        self.renderer = OverlayRenderer(element_height, element_width, step_size)
 
     def generate(self, frame: Image.Image, frame_path: str, eye_gazes: pd.DataFrame, task_id: int):
         """
-        Generates and saves an overlay frame with a red square on a selected region.
+        Generates and saves an overlay frame with the UI element on a selected region.
 
         Parameters
         ----------
@@ -90,7 +91,7 @@ class InstanceGenerator:
         Parameters
         ----------
         frame_arr : np.ndarray
-            The image array with red overlay.
+            The image array with UI element overlay.
         eye_gazes : pd.DataFrame
             The DataFrame containing eye gaze data.
         video_id : str
@@ -137,8 +138,9 @@ class ImageScorer:
     step_size : int
         Stride used to move the window.
     """
-    def __init__(self, element_size: int, step_size: int):
-        self.element_size = element_size
+    def __init__(self, element_height: int, element_width: int, step_size: int):
+        self.element_height = element_height
+        self.element_width = element_width
         self.step_size = step_size
 
     def get_scores(self, image: np.ndarray):
@@ -156,18 +158,18 @@ class ImageScorer:
             A 2D array of average scores for each patch.
         """
         h, w = image.shape
-        h_out = (h - self.element_size) // self.step_size + 1
-        w_out = (w - self.element_size) // self.step_size + 1
+        h_out = (h - self.element_height) // self.step_size + 1
+        w_out = (w - self.element_width) // self.step_size + 1
         scores = np.zeros((h_out, w_out))
 
         for i in range(h_out):
             for j in range(w_out):
                 top = i * self.step_size
                 left = j * self.step_size
-                patch = image[top:top+self.element_size, left:left+self.element_size]
+                patch = image[top:top+self.element_height, left:left+self.element_width]
                 scores[i, j] = np.mean(patch)
         return scores
-
+    
 class LocationSampler:
     """
     Selects a location in the saliency score map based on task.
@@ -229,13 +231,20 @@ class OverlayRenderer:
     step_size : int
         Stride used to locate overlay regions.
     """
-    def __init__(self, element_size: int, step_size: int):
-        self.element_size = element_size
+    def __init__(self, element_height: int, element_width: int, step_size: int):
+        self.element_height = element_height
+        self.element_width = element_width
         self.step_size = step_size
+
+        cwd = Path.cwd()  # Current working directory as a Path object
+        light_path = cwd / "src" / "utils" / "ui_elements" / f"email-light.png"
+        dark_path = cwd / "src" / "utils" / "ui_elements" / f"email-dark.png"
+        self.light_overlay = Image.open(light_path).convert("RGBA")
+        self.dark_overlay = Image.open(dark_path).convert("RGBA")
 
     def overlay(self, frame_arr: np.ndarray, i: int, j: int):
         """
-        Overlays a red square onto the image at (i, j) window index.
+        Overlays a red rectangle onto the image at (i, j) window index.
 
         Parameters
         ----------
@@ -249,20 +258,26 @@ class OverlayRenderer:
         Returns
         -------
         np.ndarray
-            The image with a red square overlay.
+            The image with a red rectangle overlay.
         """
+        # Convert to PIL Image with alpha channel
+        frame_pil = Image.fromarray(frame_arr).convert("RGBA")
+
+        # Compute position
         top = i * self.step_size
         left = j * self.step_size
-        bottom = top + self.element_size
-        right = left + self.element_size
-        frame_arr[top:bottom, left:right, 0] = 255
-        frame_arr[top:bottom, left:right, 1] = 0
-        frame_arr[top:bottom, left:right, 2] = 0
-        return frame_arr
 
+        overlay_image = random.choice([self.light_overlay, self.dark_overlay])
+
+        # Paste with mask to preserve transparency
+        frame_pil.paste(overlay_image, (left, top), mask=overlay_image)
+
+        # Convert back to numpy array
+        return np.array(frame_pil.convert("RGBA"))
+    
 if __name__ == "__main__":
     detector = SaliencyDetector()
-    frame_path = Path("data") / "video_frames" / "loc3_script1_seq7_rec1" / "frame-510.jpg"
+    frame_path = Path("data") / "video_frames" / "loc1_script1_seq1_rec1" / "frame-10.jpg"
     frame = Image.open(frame_path)
     eye_gaze_path = Path("data") / "eye_gaze_coords.csv"
     eye_gazes = pd.read_csv(eye_gaze_path)
