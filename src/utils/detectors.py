@@ -15,7 +15,7 @@ Usage:
 import numpy as np
 from PIL import Image
 import pandas as pd
-from ultralytics import YOLO
+from ultralytics import YOLO, RTDETR
 from transformers import pipeline
 import cv2
  
@@ -209,10 +209,8 @@ class SaliencyDetector:
     @staticmethod
     def _get_eye_gaze_loc(eye_gazes: pd.DataFrame, video_id: str, frame_id: str):
         video_frame = f"{video_id}_frame_{frame_id}"
-        print(video_frame)
         row = eye_gazes[eye_gazes["frame_id"]==video_frame]
         x, y = int(row['x'].values[0]), int(row['y'].values[0])
-        print(x, y)
         return x, y
 
     @staticmethod

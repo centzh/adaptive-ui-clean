@@ -1,2 +1,3 @@
-/src/data/video_frames
+/data/video_frames
+/data/generated_overlays
 /*.pt

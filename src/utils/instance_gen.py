@@ -4,9 +4,57 @@ import random
 import os
 from PIL import Image
 from detectors import SaliencyDetector
-from utils.seed import set_seed
+from seed import set_seed
 
 set_seed(42)
+
+class InstanceGenerator:
+    def __init__(self, detector, element_size=400, step_size=20):
+        self.detector = detector
+        self.element_size = element_size
+        self.step_size = step_size
+        self.scorer = ImageScorer(element_size, step_size)
+        self.renderer = OverlayRenderer(element_size, step_size)
+
+    def generate(self, frame: Image.Image, frame_path: str, eye_gazes: pd.DataFrame, task_id: int):
+        # Get combined saliency map
+        if task_id == 1:
+            saliency_map = self.detector.get_functionality_map(frame, frame_path, eye_gazes)
+        else:
+            saliency_map = self.detector.get_combined_map(frame, frame_path, eye_gazes)
+
+        # Compute scores for the saliency map
+        scores = self.scorer.get_scores(saliency_map)
+
+        # Choose location
+        sampler = LocationSampler(task_id)
+        i, j, score, label = sampler.choose_location(scores)
+        
+        # Overlay and save
+        frame_arr = np.array(frame)
+        frame_arr = self.renderer.overlay(frame_arr, i, j)
+
+        video_id = InstanceGenerator._get_video_id(frame_path)
+        frame_id = InstanceGenerator._get_frame_id(frame_path)
+        if task_id == 1 or task_id == 2:
+            save_name = f"frame-{frame_id}-{int(score)}-{label}.png"
+        elif task_id == 3:
+            save_name = f"frame-{frame_id}-{int(score)}.png"
+
+        output_dir = f"data/generated_overlays/task_{task_id}/{video_id}"
+        os.makedirs(output_dir, exist_ok=True)
+        save_path = os.path.join(output_dir, save_name)
+        Image.fromarray(frame_arr).save(save_path)
+
+    @staticmethod
+    def _get_video_id(frame_path: str):
+        video_id = frame_path.split("/")[2]
+        return video_id
+    
+    @staticmethod
+    def _get_frame_id(frame_path: str):
+        frame_id = frame_path.split("/")[3].split(".jpg")[0].split("-")[1]
+        return frame_id
 
 class ImageScorer:
     def __init__(self, element_size: int, step_size: int):
@@ -33,7 +81,7 @@ class LocationSampler:
 
     def choose_location(self, scores: np.ndarray):
         label = None
-        if self.task == 2:
+        if self.task == 1 or self.task == 2:
             label = "yes" if random.random() < 0.5 else "no"
             if label == "no":
                 threshold = np.percentile(scores, 95)
@@ -47,8 +95,8 @@ class LocationSampler:
             top_indices = np.argwhere(np.ones_like(scores, dtype=bool))
 
         top_entries = [(i, j, scores[i, j]) for i, j in top_indices]
-        i, j, _ = random.choice(top_entries)
-        return i, j, label
+        i, j, score = random.choice(top_entries)
+        return i, j, score, label
 
 class OverlayRenderer:
     def __init__(self, element_size: int, step_size: int):
@@ -65,37 +113,12 @@ class OverlayRenderer:
         frame_arr[top:bottom, left:right, 2] = 0
         return frame_arr
 
-class InstanceGenerator:
-    def __init__(self, detector, element_size=400, step_size=20):
-        self.detector = detector
-        self.element_size = element_size
-        self.step_size = step_size
-        self.scorer = ImageScorer(element_size, step_size)
-        self.renderer = OverlayRenderer(element_size, step_size)
-
-    def generate(self, frame: Image.Image, frame_path: str, eye_gazes: pd.DataFrame, task: int, save_path="result.png"):
-        # Get combined saliency map
-        saliency_map = self.detector.get_combined_map(frame, frame_path, eye_gazes)
-
-        # Compute scores for the saliency map
-        scores = self.scorer.get_scores(saliency_map)
-
-        # Choose location
-        sampler = LocationSampler(task)
-        i, j, label = sampler.choose_location(scores)
-        print(f"Label: {label}")
-
-        # Overlay and save
-        frame_arr = np.array(frame)
-        frame_arr = self.renderer.overlay(frame_arr, i, j)
-        Image.fromarray(frame_arr).save(save_path)
-
 if __name__ == "__main__":
     detector = SaliencyDetector()
     frame_path = "data/video_frames/loc3_script1_seq7_rec1/frame-510.jpg"
     frame = Image.open(frame_path)
-    eye_gaze_path = "data/eye_gaze_img_coords.csv"
+    eye_gaze_path = "data/eye_gaze_coords.csv"
     eye_gazes = pd.read_csv(eye_gaze_path)
-    task = 3
+    task = 1
     generator = InstanceGenerator(detector)
     generator.generate(frame, frame_path, eye_gazes, task)
