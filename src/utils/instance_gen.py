@@ -5,6 +5,7 @@ import os
 from PIL import Image
 from detectors import SaliencyDetector
 from seed import set_seed
+from pathlib import Path
 
 set_seed(42)
 
@@ -70,21 +71,22 @@ class InstanceGenerator:
         elif task_id == 3:
             save_name = f"frame-{frame_id}-{int(score)}.png"
 
-        output_dir = f"data/generated_overlays/task_{task_id}/{video_id}"
-        os.makedirs(output_dir, exist_ok=True)
-        save_path = os.path.join(output_dir, save_name)
+        output_dir_path = f"data/generated_overlays/task_{task_id}/{video_id}"
+        output_dir = Path(output_dir_path)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        save_path = output_dir / save_name
         Image.fromarray(frame_arr).save(save_path)
 
-    @staticmethod
-    def _get_video_id(frame_path: str):
-        video_id = frame_path.split("/")[2]
-        return video_id
-    
-    @staticmethod
-    def _get_frame_id(frame_path: str):
-        frame_id = frame_path.split("/")[3].split(".jpg")[0].split("-")[1]
-        return frame_id
+        return {"score":score, "label":label, "save_path": save_path}
 
+    @staticmethod
+    def _get_video_id(frame_path: Path):
+        return frame_path.parts[2]
+
+    @staticmethod
+    def _get_frame_id(frame_path: Path):
+        return frame_path.stem.split("-")[1] 
+        
 class ImageScorer:
     """
     Computes average saliency scores across sliding windows on an image.
@@ -220,10 +222,11 @@ class OverlayRenderer:
 
 if __name__ == "__main__":
     detector = SaliencyDetector()
-    frame_path = "data/video_frames/loc3_script1_seq7_rec1/frame-510.jpg"
+    frame_path = Path("data") / "video_frames" / "loc3_script1_seq7_rec1" / "frame-510.jpg"
     frame = Image.open(frame_path)
-    eye_gaze_path = "data/eye_gaze_coords.csv"
+    eye_gaze_path = Path("data") / "eye_gaze_coords.csv"
     eye_gazes = pd.read_csv(eye_gaze_path)
-    task = 1
-    generator = InstanceGenerator(detector)
-    generator.generate(frame, frame_path, eye_gazes, task)
+
+    for task in range(1, 4):
+        generator = InstanceGenerator(detector)
+        generator.generate(frame, frame_path, eye_gazes, task)

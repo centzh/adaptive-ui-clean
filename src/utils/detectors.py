@@ -18,6 +18,7 @@ import pandas as pd
 from ultralytics import YOLO, RTDETR
 from transformers import pipeline
 import cv2
+from pathlib import Path
  
 class SaliencyDetector:
     def __init__(self,
@@ -197,15 +198,13 @@ class SaliencyDetector:
         return color_map
     
     @staticmethod
-    def _get_video_id(frame_path: str):
-        video_id = frame_path.split("/")[2]
-        return video_id
-    
+    def _get_video_id(frame_path: Path):
+        return frame_path.parts[2]
+
     @staticmethod
-    def _get_frame_id(frame_path: str):
-        frame_id = frame_path.split("/")[3].split(".jpg")[0].split("-")[1]
-        return frame_id
-    
+    def _get_frame_id(frame_path: Path):
+        return frame_path.stem.split("-")[1] 
+        
     @staticmethod
     def _get_eye_gaze_loc(eye_gazes: pd.DataFrame, video_id: str, frame_id: str):
         video_frame = f"{video_id}_frame_{frame_id}"
@@ -234,9 +233,9 @@ class SaliencyDetector:
 if __name__ == "__main__":
     detector = SaliencyDetector()
 
-    frame_path = "data/video_frames/loc3_script1_seq7_rec1/frame-510.jpg"
+    frame_path = Path("data") / "video_frames" / "loc3_script1_seq7_rec1" / "frame-510.jpg"
     frame = Image.open(frame_path)
-    eye_gaze_path = "data/eye_gaze_img_coords.csv"
+    eye_gaze_path = Path("data") / "eye_gaze_coords.csv"
     eye_gazes = pd.read_csv(eye_gaze_path)
     combined_map = detector.get_combined_map(frame, frame_path, eye_gazes)
     detector.save_map(combined_map, "combined.png")
