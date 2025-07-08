@@ -4,104 +4,98 @@ import random
 import os
 from PIL import Image
 from detectors import SaliencyDetector
+from utils.seed import set_seed
 
+set_seed(42)
 
-seed = 42
-random.seed(seed)
-np.random.seed(seed)
+class ImageScorer:
+    def __init__(self, element_size: int, step_size: int):
+        self.element_size = element_size
+        self.step_size = step_size
 
-def get_scores(image: np.ndarray, h: int, w: int, element_size: int, step_size: int):
-    """
-    Compute mean scores over sliding window patches of an image.
+    def get_scores(self, image: np.ndarray):
+        h, w = image.shape
+        h_out = (h - self.element_size) // self.step_size + 1
+        w_out = (w - self.element_size) // self.step_size + 1
+        scores = np.zeros((h_out, w_out))
 
-    Parameters
-    ----------
-    image: 2D input image (grayscale) as a NumPy array.
-    h: Height of the input image.
-    w: Width of the input image.
-    element_size: Size of the square patch to extract (height and width).
-    step_size: Step size between successive patches.
+        for i in range(h_out):
+            for j in range(w_out):
+                top = i * self.step_size
+                left = j * self.step_size
+                patch = image[top:top+self.element_size, left:left+self.element_size]
+                scores[i, j] = np.mean(patch)
+        return scores
 
-    Returns
-    -------
-    scores : 2D array of shape (h_out, w_out), where each entry is the mean 
-    intensity of a patch extracted from the input image.
-    """
-    h_out = (h - element_size) // step_size + 1
-    w_out = (w - element_size) // step_size + 1
-    scores = np.zeros((h_out, w_out))
+class LocationSampler:
+    def __init__(self, task: int):
+        self.task = task
 
-    for i in range(h_out):
-        for j in range(w_out):
-            top = i * step_size
-            left = j * step_size
-            patch = image[top:top+element_size, left:left+element_size]
-            scores[i, j] = np.mean(patch)
+    def choose_location(self, scores: np.ndarray):
+        label = None
+        if self.task == 2:
+            label = "yes" if random.random() < 0.5 else "no"
+            if label == "no":
+                threshold = np.percentile(scores, 95)
+                mask = scores >= threshold
+            else:
+                threshold = np.percentile(scores, 20)
+                mask = scores <= threshold
+            top_indices = np.argwhere(mask)
 
-    return scores
+        elif self.task == 3:
+            top_indices = np.argwhere(np.ones_like(scores, dtype=bool))
 
-def overlay_frame(frame_arr, i, j, step_size, element_size):
-    top = i * step_size
-    left = j * step_size
-    bottom = top + element_size
-    right = left + element_size
+        top_entries = [(i, j, scores[i, j]) for i, j in top_indices]
+        i, j, _ = random.choice(top_entries)
+        return i, j, label
 
-    frame_arr[top:bottom, left:right, 0] = 255  # Red
-    frame_arr[top:bottom, left:right, 1] = 0    # Green
-    frame_arr[top:bottom, left:right, 2] = 0    # Blue
-    return frame_arr
+class OverlayRenderer:
+    def __init__(self, element_size: int, step_size: int):
+        self.element_size = element_size
+        self.step_size = step_size
 
-def choose_placement_location(task, scores, label=None):
-    # Task 2: Visibility
-    if task == 2:
-        
-        # Sample image label
-        label = "yes" if random.random() < 0.5 else "no"
-        # If label is no, sample from the top 95% of score locations
-        # If label is yes, sample from the bottom 20% of score locations
-        if label == "no":
-            threshold = np.percentile(scores, 95)
-            mask = scores >= threshold
-        else:  # label == "yes"
-            threshold = np.percentile(scores, 20)
-            mask = scores <= threshold
-        top_indices = np.argwhere(mask)
-        print(label)
+    def overlay(self, frame_arr: np.ndarray, i: int, j: int):
+        top = i * self.step_size
+        left = j * self.step_size
+        bottom = top + self.element_size
+        right = left + self.element_size
+        frame_arr[top:bottom, left:right, 0] = 255
+        frame_arr[top:bottom, left:right, 1] = 0
+        frame_arr[top:bottom, left:right, 2] = 0
+        return frame_arr
 
-    # Task 3: Placement
-    elif task == 3:
-        top_indices = np.argwhere(np.ones_like(scores, dtype=bool))
-    
-    top_entries = [(i, j, scores[i, j]) for i, j in top_indices]
-    i, j, _ = random.choice(top_entries)
-    return i, j
+class InstanceGenerator:
+    def __init__(self, detector, element_size=400, step_size=20):
+        self.detector = detector
+        self.element_size = element_size
+        self.step_size = step_size
+        self.scorer = ImageScorer(element_size, step_size)
+        self.renderer = OverlayRenderer(element_size, step_size)
 
-def generate_instance(detector, frame, frame_path, eye_gazes, task, element_size=400, step_size=20):
+    def generate(self, frame: Image.Image, frame_path: str, eye_gazes: pd.DataFrame, task: int, save_path="result.png"):
+        # Get combined saliency map
+        saliency_map = self.detector.get_combined_map(frame, frame_path, eye_gazes)
 
-    # Get saliency map
-    combined_map = detector.get_combined_map(frame, frame_path, eye_gazes)
- 
-    # Get scores for the image
-    frame_arr = np.array(frame)
-    w, h = frame.size
-    scores = get_scores(combined_map, h, w, element_size, step_size)
+        # Compute scores for the saliency map
+        scores = self.scorer.get_scores(saliency_map)
 
-    # Choose element placement location
-    i, j = choose_placement_location(task, scores)
-     
-    # Overlay location with element
-    frame_arr = overlay_frame(frame_arr, i, j, step_size, element_size)
-  
-    overlaid_img = Image.fromarray(frame_arr)
-    overlaid_img.save("result.png")
-  
-# Example usage
+        # Choose location
+        sampler = LocationSampler(task)
+        i, j, label = sampler.choose_location(scores)
+        print(f"Label: {label}")
+
+        # Overlay and save
+        frame_arr = np.array(frame)
+        frame_arr = self.renderer.overlay(frame_arr, i, j)
+        Image.fromarray(frame_arr).save(save_path)
+
 if __name__ == "__main__":
     detector = SaliencyDetector()
     frame_path = "data/video_frames/loc3_script1_seq7_rec1/frame-510.jpg"
     frame = Image.open(frame_path)
     eye_gaze_path = "data/eye_gaze_img_coords.csv"
     eye_gazes = pd.read_csv(eye_gaze_path)
-    task = 2
-    generate_instance(detector, frame, frame_path, eye_gazes, task)
-
+    task = 3
+    generator = InstanceGenerator(detector)
+    generator.generate(frame, frame_path, eye_gazes, task)
