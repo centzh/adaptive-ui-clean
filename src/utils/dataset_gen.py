@@ -51,7 +51,7 @@ class DatasetGenerator:
         train, test = train_test_split(self.videos, test_size=self.test_size)
         return train, test
     
-    def generate_dataset(self, split="train", eye_gaze_data=None, save_metadata_path=None):
+    def generate_dataset(self, split="train", eye_gaze_data=None, save_metadata_path=None, sample_size=30):
         if split == "train":
             videos = self.train_videos
         elif split == "test":
@@ -64,7 +64,7 @@ class DatasetGenerator:
         for video in videos:
             frame_videos_path = self.video_path / video
             all_frames = sorted([f for f in frame_videos_path.iterdir() if f.is_file()])
-            sampled_frames = random.sample(all_frames, min(1, len(all_frames)))
+            sampled_frames = random.sample(all_frames, min(sample_size, len(all_frames)))
 
             for frame_path in sampled_frames:
                 if not frame_path.is_file():
