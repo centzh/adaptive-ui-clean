@@ -1,3 +1,13 @@
+"""
+Dataset generation script for creating training and testing instances from video frame data.
+
+This module loads video frames and eye-gaze data, then generates overlayed image instances
+for a specified task using a saliency-based detector. The resulting datasets are saved
+in JSON Lines format, containing frame file paths and corresponding labels.
+
+Classes:
+    DatasetGenerator: Handles dataset creation, video splitting, and instance generation.
+"""
 import json
 import random
 import numpy as np
@@ -10,6 +20,8 @@ from instance_gen import InstanceGenerator
 from seed import set_seed
 from pathlib import Path
 
+set_seed(42)
+
 class DatasetGenerator:
     def __init__(
         self,
@@ -17,19 +29,13 @@ class DatasetGenerator:
         video_path: Path,
         detector,
         task=2,
-        element_size=400,
-        step_size=20,
-        seed=42,
-        test_size=0.01
+        test_size=0.3
     ):
         self.processed_path = Path(processed_path)
         self.video_path = Path(video_path)
         self.task = task
-        self.seed = seed
         self.test_size = test_size
-        
-        set_seed(seed)
-        self.instance_generator = InstanceGenerator(detector, element_size, step_size)
+        self.instance_generator = InstanceGenerator(detector)
         
         self.videos = self._get_videos()
         self.train_videos, self.test_videos = self._split_videos()
@@ -42,7 +48,7 @@ class DatasetGenerator:
         return videos
     
     def _split_videos(self):
-        train, test = train_test_split(self.videos, test_size=self.test_size, random_state=self.seed)
+        train, test = train_test_split(self.videos, test_size=self.test_size)
         return train, test
     
     def generate_dataset(self, split="train", eye_gaze_data=None, save_metadata_path=None):
@@ -82,8 +88,7 @@ class DatasetGenerator:
                     dataset.append({
                         "frames_file_names": [str(frame_path), str(generated_instance_1_data["save_path"]), str(generated_instance_2_data["save_path"])],
                         "label": min_index
-                    })
-                    ipdb.set_trace()
+                    })         
         
         if save_metadata_path:
             save_metadata_path = Path(save_metadata_path)
@@ -96,6 +101,7 @@ class DatasetGenerator:
         return dataset
 
 if __name__ == "__main__":
+   
     processed_path = Path("data") / "generated_overlays"
     video_path = Path("data") / "video_frames"
     eye_gaze_path = Path("data") / "eye_gaze_coords.csv"
@@ -103,18 +109,18 @@ if __name__ == "__main__":
 
     task_id = 3
     detector = SaliencyDetector()
-    dataset_gen = DatasetGenerator(processed_path, video_path, detector, task=task_id, seed=42)
+    dataset_gen = DatasetGenerator(processed_path, video_path, detector, task=task_id)
     
-    # # Generate train dataset metadata and files
-    # dataset_gen.generate_dataset(
-    #     split="train",
-    #     eye_gaze_data=eye_gazes,
-    #     save_metadata_path=f"data/train-task-{task_id}.jsonl"
-    # )
+    # Generate train dataset metadata and files
+    dataset_gen.generate_dataset(
+        split="train",
+        eye_gaze_data=eye_gazes,
+        save_metadata_path=f"data/train-task-{task_id}.jsonl"
+    )
 
     # Uncomment to generate test set
     dataset_gen.generate_dataset(
         split="test",
         eye_gaze_data=eye_gazes,
         save_metadata_path=f"data/test-task-{task_id}.jsonl"
-    )
+    ) 

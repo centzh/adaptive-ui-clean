@@ -108,9 +108,11 @@ class InstanceGenerator:
         img = Image.fromarray(frame_arr)
         draw = ImageDraw.Draw(img)
 
-        # Get gaze x, y coordinates (assuming these are lists or arrays)
+        # Get gaze x, y coordinates
         gaze_x, gaze_y = SaliencyDetector._get_eye_gaze_loc(eye_gazes, video_id, frame_id)
-
+        if gaze_x is None and gaze_y is None:
+            return img 
+            
         # Draw small blue circle for gaze point
         radius = 30
         left_up = (gaze_x - radius, gaze_y - radius)
@@ -282,6 +284,6 @@ if __name__ == "__main__":
     eye_gaze_path = Path("data") / "eye_gaze_coords.csv"
     eye_gazes = pd.read_csv(eye_gaze_path)
 
-    for task in range(1, 4):
-        generator = InstanceGenerator(detector)
-        generator.generate(frame, frame_path, eye_gazes, task)
+    task = 2
+    generator = InstanceGenerator(detector)
+    generator.generate(frame, frame_path, eye_gazes, task)

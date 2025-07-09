@@ -119,23 +119,26 @@ class SaliencyDetector:
         obj_coords = bboxes.xyxy
         w, h = frame.size
 
+        functionality_map = np.zeros((h, w), dtype=np.uint8)
+
         # No objects detected
         if obj_coords is None or len(obj_coords) == 0:
-            return None
+            return functionality_map # Return all zeros, if no object was found
 
         # Get current eye gaze location for the frame
         video_id = SaliencyDetector._get_video_id(frame_path)
         frame_id = SaliencyDetector._get_frame_id(frame_path)
         gaze_x, gaze_y = SaliencyDetector._get_eye_gaze_loc(eye_gazes, video_id, frame_id)
+        if gaze_x is None and gaze_y is None:
+            return functionality_map
 
         # Find object (midpoint) that is closest to the gaze point (1/4 of image width, by default)
         distance_thresh = w//4
         closest_object = SaliencyDetector._find_closest_object(obj_coords, (gaze_x, gaze_y), distance_thresh)
 
-        functionality_map = np.zeros((h, w), dtype=np.uint8)
         # Closest object was located at a distance greater than the threshold 
         if closest_object is None:
-            return functionality_map # Return all zeros, if no object was found
+            return functionality_map # Return all zeros, if closest object was beyond threshold
         
         # Mark the bounding box of the closest object as white, representing to avoid
         x1, y1, x2, y2 = closest_object
@@ -209,6 +212,9 @@ class SaliencyDetector:
     def _get_eye_gaze_loc(eye_gazes: pd.DataFrame, video_id: str, frame_id: str):
         video_frame = f"{video_id}_frame_{frame_id}"
         row = eye_gazes[eye_gazes["frame_id"]==video_frame]
+        # No eye gazes found
+        if row.empty:
+            return None, None
         x, y = int(row['x'].values[0]), int(row['y'].values[0])
         return x, y
 
