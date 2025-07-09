@@ -10,7 +10,7 @@
 #SBATCH --nodes=1                             # Number of nodes
 #SBATCH --ntasks=1                            # Number of MPI tasks (keep as 1 for single-GPU)
 #SBATCH --gres=gpu:1                          # Request 1 GPU
-#SBATCH --time=01:00:00                       # Max wallclock time (1 hour)
+#SBATCH --time=10:00:00                       # Max wallclock time (10 hours)
 #SBATCH --mail-type=NONE                      # Email notifications (NONE, BEGIN, END, FAIL)
 #SBATCH -p ampere                             # Partition to use (Ampere = A100)
 
@@ -21,7 +21,9 @@ module purge                                  # Clean up modules
 module load rhel8/default-amp                 # Required base environment for Wilkes3
 
 # Activate your conda environment
-source /rds/user/vz237/hpc-work/conda_envs/adaptive-ui-clean/bin/activate
+source /home/${USER}/.bashrc
+source /home/${USER}/miniforge3/bin/activate
+mamba activate "/home/${USER}/rds/hpc-work/conda_envs/adaptive-ui-clean"
 
 ################### APPLICATION SETUP #########################
 
