@@ -1,19 +1,19 @@
 from datasets import load_dataset
-import ipdb
 import gc
 import time
-# from transformers import BitsAndBytesConfig
 import torch
+import ipdb
 from trl import SFTConfig, SFTTrainer
 import wandb
 from peft import LoraConfig, get_peft_model
 import random
 import numpy as np
 import os
+import yaml
+import argparse
 from transformers import EarlyStoppingCallback
 os.environ["WANDB_MODE"] = "online"
-print(torch.version.cuda)        # CUDA version PyTorch was built with
-
+ 
 from transformers import (
     AutoModelForCausalLM,
     AutoProcessor,
@@ -21,7 +21,6 @@ from transformers import (
     Qwen2_5_VLForConditionalGeneration,
 )
 
-# from transformers import BitsAndBytesConfig
 from qwen_vl_utils import process_vision_info
 
 seed = 0
@@ -56,12 +55,28 @@ question = (
     "FINAL ANSWER: [Yes, keep the element | No, remove the element]"
 )
 
-def get_peft_config():
-    # Configure LoRA
+def get_peft_config(lora_rank, lora_alpha=16, lora_dropout=0.05):
+    """
+    Returns a LoRA PEFT configuration object for fine-tuning.
+
+    Parameters
+    ----------
+    lora_rank: int, optional
+        Rank parameter for LoRA layers (default is 8).
+    lora_alpha: int, optional
+        Alpha scaling factor for LoRA layers (default is 16, in practice).
+    lora_dropout: float, optional
+        Probability of dropout for LoRA layers.
+
+    Returns
+    -------
+    peft_config: LoraConfig
+        Configured LoRA PEFT settings for causal language modeling.
+    """
     peft_config = LoraConfig(
-        lora_alpha=16,
-        lora_dropout=0.05,
-        r=8,
+        lora_alpha=lora_alpha,
+        lora_dropout=lora_dropout,
+        r=lora_rank,
         bias="none",
         target_modules=["q_proj", "v_proj"],
         task_type="CAUSAL_LM",
@@ -69,6 +84,31 @@ def get_peft_config():
     return peft_config
 
 def get_trainer(model, training_args, train_dataset, eval_dataset, data_collator, peft_config, processing_class):
+    """
+    Returns an SFTTrainer configured for training with early stopping.
+
+    Parameters
+    ----------
+    model: torch.nn.Module
+        The model to be fine-tuned.
+    training_args: SFTConfig
+        Training arguments and configurations.
+    train_dataset: Dataset
+        Dataset used for training.
+    eval_dataset: Dataset
+        Dataset used for evaluation.
+    data_collator: callable
+        Function to collate batches during training.
+    peft_config: LoraConfig
+        LoRA PEFT configuration.
+    processing_class: tokeniser or processor
+        Class responsible for processing input data.
+
+    Returns
+    -------
+    trainer: SFTTrainer
+        Initialised trainer ready for training.
+    """
     trainer = SFTTrainer(
         model=model,
         args=training_args,
@@ -83,49 +123,41 @@ def get_trainer(model, training_args, train_dataset, eval_dataset, data_collator
     )
     return trainer
 
-def get_training_args():
-    # Configure training arguments
-    training_args = SFTConfig(
-        output_dir="qwen2-32b-instruct-trl-sft-ChartQA",  # Directory to save the model
-        num_train_epochs=3,  # Number of training epochs
-        per_device_train_batch_size=1,  # Batch size for training
-        per_device_eval_batch_size=1,  # Batch size for evaluation
-        gradient_accumulation_steps=10,  # Steps to accumulate gradients
-        gradient_checkpointing=True,  # Enable gradient checkpointing for memory efficiency
-        # Optimizer and scheduler settings
-        optim="adamw_torch_fused",  # Optimizer type
-        learning_rate=2e-4,  # Learning rate for training
-        lr_scheduler_type="constant",  # Type of learning rate scheduler
-        # Logging and evaluation
-        logging_steps=10,  # Steps interval for logging
-        eval_steps=100,  # Steps interval for evaluation
-        eval_strategy="steps",  # Strategy for evaluation
-        save_strategy="steps",  # Strategy for saving the model
-        save_steps=100,  # Steps interval for saving
-        metric_for_best_model="eval_loss",  # Metric to evaluate the best model
-        greater_is_better=False,  # Whether higher metric values are better
-        load_best_model_at_end=True,  # Load the best model after training
-        # Mixed precision and gradient settings
-        bf16=True,  # Use bfloat16 precision
-        tf32=True,  # Use TensorFloat-32 precision
+def get_training_args(config_path: str):
+    """
+    Loads training arguments from a YAML configuration file.
 
-        # CHANGE BACK
-        max_grad_norm=0.3,  # Maximum norm for gradient clipping
-        warmup_ratio=0.03,  # Ratio of total steps for warmup
-        # Hub and reporting
-        push_to_hub=False,  # Whether to push model to Hugging Face Hub
-        report_to="wandb",  # Reporting tool for tracking metrics
-        # Gradient checkpointing settings
-        gradient_checkpointing_kwargs={"use_reentrant": False},  # Options for gradient checkpointing
-        # Dataset configuration
-        dataset_text_field="",  # Text field in dataset
-        dataset_kwargs={"skip_prepare_dataset": True},  # Additional dataset options
-        # max_seq_length=1024  # Maximum sequence length for input
-    )
-    training_args.remove_unused_columns = False  # Keep unused columns in dataset
+    Parameters
+    ----------
+    config_path: str
+        Path to the YAML config file.
+
+    Returns
+    -------
+    training_args: SFTConfig
+        Training configuration object populated from the YAML file.
+    """
+    with open(config_path) as f:
+        config_dict = yaml.safe_load(f)
+    print(config_dict)
+    training_args = SFTConfig(**config_dict)
     return training_args
 
+
 def format_data(sample):
+    """
+    Formats a data sample into the chat-based input-output structure for the model.
+
+    Parameters
+    ----------
+    sample: dict
+        Raw sample containing 'frames_file_names' and 'label'.
+
+    Returns
+    -------
+    formatted_sample: list
+        List of roles and content dictionaries structured for training.
+    """
     return [
         {"role": "system", "content": [{"type": "text", "text": "You are a helpful assistant."}]},
         {"role": "user", "content": [
@@ -151,72 +183,83 @@ def preprocess_data(train_dataset, test_dataset):
     return train_dataset, test_dataset
 
 def clear_memory():
-    # Delete variables if they exist in the current global scope
-    if "inputs" in globals():
-        del globals()["inputs"]
-    if "model" in globals():
-        del globals()["model"]
-    if "processor" in globals():
-        del globals()["processor"]
-    if "trainer" in globals():
-        del globals()["trainer"]
-    if "peft_model" in globals():
-        del globals()["peft_model"]
-    # if "bnb_config" in globals():
-    #     del globals()["bnb_config"]
-    time.sleep(2)
+    """
+    Clears GPU memory and deletes specified global variables if they exist.
+    """
+    var_names = ["inputs", "model", "processor", "trainer", "peft_model"]
+    # Delete variables from the global scope
+    for var in var_names:
+        if var in globals():
+            del globals()[var]
 
     # Garbage collection and clearing CUDA memory
     gc.collect()
-    time.sleep(2)
-    torch.cuda.empty_cache()
-    torch.cuda.synchronize()
-    time.sleep(2)
-    gc.collect()
-    time.sleep(2)
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        print(f"GPU allocated memory: {torch.cuda.memory_allocated() / 1024**3:.2f} GB")
+        print(f"GPU reserved memory: {torch.cuda.memory_reserved() / 1024**3:.2f} GB")
+    else:
+        print("CUDA not available - using CPU")
 
-    print(f"GPU allocated memory: {torch.cuda.memory_allocated() / 1024**3:.2f} GB")
-    print(f"GPU reserved memory: {torch.cuda.memory_reserved() / 1024**3:.2f} GB")
+def create_collate_fn(processor):
+    """
+    Creates a collate function with access to the processor.
+    
+    Parameters
+    ----------
+    processor: AutoProcessor
+        The processor to use for tokenization and image processing.
+        
+    Returns
+    -------
+    collate_fn: callable
+        Collate function that can be used with DataLoader.
+    """
+    def collate_fn(examples):
+        """
+        Collates a batch of examples by processing images and text inputs into tensors.
 
-# Create a data collator to encode text and image pairs
-def collate_fn(examples):
-    # Get the texts and images, and apply the chat template
-    texts = [
-        processor.apply_chat_template(example, tokenize=False) for example in examples
-    ]  # Prepare texts for processing
-    image_inputs = [process_vision_info(example)[0] for example in examples]  # Process the images to extract inputs
+        Parameters
+        ----------
+        examples: list
+            List of formatted data examples.
 
-    # Tokenize the texts and process the images
-    batch = processor(
-        text=texts, images=image_inputs, return_tensors="pt", padding=True
-    )  # Encode texts and images into tensors
+        Returns
+        -------
+        batch: dict
+            Dictionary containing input tensors and masked labels ready for training.
+        """
+        # Get the texts and images, and apply the chat template
+        texts = [
+            processor.apply_chat_template(example, tokenize=False) for example in examples
+        ]  
+        
+        # Prepare texts for processing
+        image_inputs = [process_vision_info(example)[0] for example in examples]  # Process the images to extract inputs
 
-    # The labels are the input_ids, and we mask the padding tokens in the loss computation
-    labels = batch["input_ids"].clone()  # Clone input IDs for labels
-    labels[labels == processor.tokenizer.pad_token_id] = -100  # Mask padding tokens in labels
+        # Tokenize the texts and process the images
+        batch = processor(
+            text=texts, images=image_inputs, return_tensors="pt", padding=True
+        ) 
 
-    # Ignore the image token index in the loss computation (model specific)
-    # if isinstance(processor, Qwen2VLProcessor):  # Check if the processor is Qwen2VLProcessor
-    #     image_tokens = [151652, 151653, 151655]  # Specific image token IDs for Qwen2VLProcessor
-    # else:
-    image_tokens = [processor.tokenizer.convert_tokens_to_ids(processor.image_token)]  # Convert image token to ID
+        # The labels are the input_ids, and we mask the padding tokens in the loss computation
+        labels = batch["input_ids"].clone()  # Clone input IDs for labels
+        labels[labels == processor.tokenizer.pad_token_id] = -100  # Mask padding tokens in labels
+        image_tokens = [processor.tokenizer.convert_tokens_to_ids(processor.image_token)]  # Convert image token to ID
 
-    # Mask image token IDs in the labels
-    for image_token_id in image_tokens:
-        labels[labels == image_token_id] = -100  # Mask image token IDs in labels
+        # Mask image token IDs in the labels
+        for image_token_id in image_tokens:
+            labels[labels == image_token_id] = -100  # Mask image token IDs in labels
 
-    batch["labels"] = labels  # Add labels to the batch
-
-    return batch  # Return the prepared batch
+        # Add labels to the batch
+        batch["labels"] = labels  
+        return batch
+    
+    return collate_fn
 
 # Load this from zero-shot.py later
 def load_model(model_id: str):
 
-    # BitsAndBytesConfig int-4 config
-    # bnb_config = BitsAndBytesConfig(
-    #     load_in_4bit=True, bnb_4bit_use_double_quant=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=torch.bfloat16
-    # )
- 
     print(f"Loading {model_id}")
     if "Qwen2.5-VL" in model_id:
         model_class = Qwen2_5_VLForConditionalGeneration
@@ -227,51 +270,138 @@ def load_model(model_id: str):
         model_id,
         torch_dtype=torch.bfloat16,
         device_map="auto",
-        # quantization_config=bnb_config
-        # attn_implementation="flash_attention_2",
     )
 
-    # GOT RID OF EVAL
-  
     print(f"Successfully loaded {model_id} for inference")
     return model
 
 def connect_w_and_b(training_args, run_name):
+    """
+    Initialises a Weights & Biases run with the given configuration.
+
+    Parameters
+    ----------
+    training_args: SFTConfig
+        Training configuration to log.
+    run_name: str
+        Name of the wandb run.
+    """
     wandb.init(
-        project="adaptive-ui",  
+        project="adaptive-ui-clean",  
         name=run_name,
         config=training_args,
     )
 
-# MODIFIED MIN AND MAX PIXELS
-def get_processor(model_id):
+def get_processor(model_id, min_patches, max_patches, patch_size=28):
+    """
+    Loads and returns the processor for the given model with patch size settings.
+
+    Parameters
+    ----------
+    model_id: str
+        Identifier of the model for which to load the processor.
+    min_patches: int, optional
+        Minimum number of patches to process.
+    max_patches: int, optional
+        Maximum number of patches to process.
+    patch_size: int, optional
+        Size of each patch.
+
+    Returns
+    -------
+    processor: AutoProcessor
+        Processor configured for the model.
+    """
     processor = AutoProcessor.from_pretrained(
         model_id, 
-        min_pixels = 256 * 28 * 28, 
-        max_pixels = 512 * 28 * 28
+        min_pixels = min_patches * patch_size * patch_size, 
+        max_pixels = max_patches * patch_size * patch_size
     )
     return processor
 
-if __name__ == "__main__":
-    train_path = "data/train-task-2.jsonl"
-    test_path = "data/test-task-2.jsonl"
+def parse_args():
+    """
+    Parses command-line arguments for the training script.
+
+    Returns
+    -------
+    argparse.Namespace
+        Parsed arguments including dataset paths, config path, output directory, model id, and run name.
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--train_path", type=str, default="data/train-task-2.jsonl")
+    parser.add_argument("--test_path", type=str, default="data/test-task-2.jsonl")
+    parser.add_argument("--config_path", type=str, default="src/training/training.yml")
+    parser.add_argument("--output_dir", type=str, default="output")
+    parser.add_argument("--model_id", type=str, default="Qwen/Qwen2.5-VL-32B-Instruct")
+    parser.add_argument("--run_name", type=str, default="default-run")
+    parser.add_argument("--min_patches", type=int, default=256)
+    parser.add_argument("--max_patches", type=int, default=512)
+    parser.add_argument("--lora_rank", type=int, default=8)
+    return parser.parse_args()
+
+def get_data(train_path, test_path):
+    """
+    Loads and preprocesses training and test datasets.
+
+    Parameters
+    ----------
+    train_path: str
+        File path to the training dataset.
+    test_path: str
+        File path to the test dataset.
+
+    Returns
+    -------
+    train_dataset: list
+        Preprocessed training dataset.
+    test_dataset: list
+        Preprocessed test dataset.
+    """
     dataset = load_data(train_path, test_path)
     train_dataset = dataset["train"]
     test_dataset = dataset["test"]
-    
     train_dataset, test_dataset = preprocess_data(train_dataset, test_dataset)
-# 
+    return train_dataset, test_dataset
+
+
+def train(model_id, run_name, train_dataset, test_dataset, config_path, min_patches, max_patches, lora_rank):
+    """
+    Runs the full training pipeline: clear memory, load model and processor, prepare training, and start training.
+
+    Parameters
+    ----------
+    model_id: str
+        Identifier for the pretrained model to fine-tune.
+    run_name: str
+        Name of the current training run for logging.
+    train_dataset: list
+        Preprocessed training dataset.
+    test_dataset: list
+        Preprocessed test dataset.
+    config_path: str
+        Path to the YAML config for training.
+    min_patches: int
+        Mininmum number of patches to divide the input image.
+    max_patches: int
+        Maximum number of patches to divide the input image.
+    lora_rank : int
+        LoRA rank parameter.
+    """
+
+    # Clear GPU memory
     clear_memory()
 
-    # model_id = "Qwen/Qwen2.5-VL-32B-Instruct"
-    model_id = "Qwen/Qwen2.5-VL-32B-Instruct"
+    # Load memory
     model = load_model(model_id)
-    processor = get_processor(model_id)
+    processor = get_processor(model_id, min_patches, max_patches)
 
-    training_args = get_training_args()
-    run_name = "task-2-qwen2.5-vl-32b-instruct-full-dataset"
+    training_args = get_training_args(config_path)
     connect_w_and_b(training_args, run_name)
-    peft_config = get_peft_config()
+    peft_config = get_peft_config(lora_rank)
+
+    collate_fn = create_collate_fn(processor)
+
     trainer = get_trainer(
         model=model, 
         training_args=training_args,
@@ -281,6 +411,26 @@ if __name__ == "__main__":
         peft_config=peft_config,
         processing_class=processor.tokenizer,
     )
+
     trainer.train()
-    # trainer.save_model(training_args.output_dir)
-     
+    trainer.save_model(training_args.output_dir)
+
+
+def main():
+    """Main training pipeline"""
+    args = parse_args()
+    train_path = args.train_path
+    test_path = args.test_path
+    config_path = args.config_path
+    output_dir = args.output_dir
+    model_id = args.model_id
+    run_name = args.run_name
+    min_patches = args.min_patches
+    max_patches = args.max_patches
+    lora_rank = args.lora_rank
+
+    train_dataset, test_dataset = get_data(train_path, test_path)
+    train(model_id, run_name, train_dataset, test_dataset, config_path, min_patches, max_patches, lora_rank)
+    
+if __name__ == "__main__":
+    main()
