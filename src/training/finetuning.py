@@ -335,8 +335,8 @@ def parse_args():
     parser.add_argument("--output_dir", type=str, default="output")
     parser.add_argument("--model_id", type=str, default="Qwen/Qwen2.5-VL-32B-Instruct")
     parser.add_argument("--run_name", type=str, default="default-run")
-    parser.add_argument("--min_patches", type=int, default=256)
-    parser.add_argument("--max_patches", type=int, default=512)
+    parser.add_argument("--min_patches", type=int, default=16)
+    parser.add_argument("--max_patches", type=int, default=32)
     parser.add_argument("--lora_rank", type=int, default=8)
     return parser.parse_args()
 
