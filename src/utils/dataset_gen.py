@@ -19,6 +19,7 @@ from detectors import SaliencyDetector
 from instance_gen import InstanceGenerator
 from seed import set_seed
 from pathlib import Path
+import argparse
 
 set_seed(42)
 
@@ -51,7 +52,7 @@ class DatasetGenerator:
         train, test = train_test_split(self.videos, test_size=self.test_size)
         return train, test
     
-    def generate_dataset(self, split="train", eye_gaze_data=None, save_metadata_path=None, sample_size=30):
+    def generate_dataset(self, split="train", eye_gaze_data=None, save_metadata_path=None, sample_size=20):
         if split == "train":
             videos = self.train_videos
         elif split == "test":
@@ -107,7 +108,12 @@ if __name__ == "__main__":
     eye_gaze_path = Path("data") / "eye_gaze_coords.csv"
     eye_gazes = pd.read_csv(eye_gaze_path)
 
-    task_id = 3
+    parser = argparse.ArgumentParser(description="Generate dataset with gaze overlays.")
+    parser.add_argument("--task", type=int, required=True, help="Task ID for dataset generation")
+
+    args = parser.parse_args()
+    task_id = args.task
+
     detector = SaliencyDetector()
     dataset_gen = DatasetGenerator(processed_path, video_path, detector, task=task_id)
     
