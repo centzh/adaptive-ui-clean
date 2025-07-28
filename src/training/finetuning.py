@@ -28,7 +28,7 @@ random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
 
-question = (
+question_visibility = (
     "You are shown two identical images from a head‑mounted camera:\n"
     "- Image 1 is the original camera view.\n"
     "- Image 2 is the same view but with a UI element overlayed on part of the scene.\n"
@@ -54,6 +54,43 @@ question = (
     "- Covers high‑contrast or high‑colour‑intensity area: [yes/no]\n"
     "FINAL ANSWER: [Yes, keep the element | No, remove the element]"
 )
+
+
+question_placement = (
+    "You are shown three identical images from a head-mounted camera:\n"
+    "- Image 1 is the original camera view.\n"
+    "- Image 2 is the same view with a UI element overlayed in one part of the scene.\n"
+    "- Image 3 is the same view with a UI element overlayed in a different part of the scene.\n"
+    "\n"
+    "Step 1: What do the UI elements in Image 2 and Image 3 cover?\n"
+    "An element 'covers' an object if it hides any part of it from view. If the object is fully visible around the element, it is not considered covered.\n"
+    "Answer format: In Image 2, the element covers [object/area]. In Image 3, the element covers [object/area].\n"
+    "\n"
+    "Step 2: For each image, answer the following four yes/no questions about the UI element in that image:\n"
+    "1. Does the element cover something the user is using, about to use, or interacting with?\n"
+    "2. Does the element cover the floor, doors, windows, or signs?\n"
+    "3. Does the element cover people's faces or bodies?\n"
+    "4. Does the element cover an area of high colour intensity or edge contrast?\n"
+    "\n"
+    "Then, compare the total number of 'yes' answers between the two images.\n"
+    "- If Image 2 has fewer 'yes' answers, answer 1 (left).\n"
+    "- If Image 3 has fewer 'yes' answers, answer 2 (right).\n"
+    "\n"
+    "STRICT FORMAT:\n"
+    "Step 1: In Image 2, the element covers [...]. In Image 3, the element covers [...].\n"
+    "Step 2 (Image 2):\n"
+    "- Covers something used/interacted with: [yes/no]\n"
+    "- Covers floor/doors/windows/signs: [yes/no]\n"
+    "- Covers people: [yes/no]\n"
+    "- Covers high-contrast or high-colour-intensity area: [yes/no]\n"
+    "Step 2 (Image 3):\n"
+    "- Covers something used/interacted with: [yes/no]\n"
+    "- Covers floor/doors/windows/signs: [yes/no]\n"
+    "- Covers people: [yes/no]\n"
+    "- Covers high-contrast or high-colour-intensity area: [yes/no]\n"
+    "FINAL ANSWER: [1 | 2]"
+)
+
 
 def get_peft_config(lora_rank, lora_alpha=16, lora_dropout=0.05):
     """
@@ -144,12 +181,14 @@ def get_training_args(config_path: str):
     return training_args
 
 
-def format_data(sample):
+def format_data(task, sample):
     """
     Formats a data sample into the chat-based input-output structure for the model.
 
     Parameters
     ----------
+    task: str
+        Visibility or placement task
     sample: dict
         Raw sample containing 'frames_file_names' and 'label'.
 
@@ -158,28 +197,45 @@ def format_data(sample):
     formatted_sample: list
         List of roles and content dictionaries structured for training.
     """
-    return [
-        {"role": "system", "content": [{"type": "text", "text": "You are a helpful assistant."}]},
-        {"role": "user", "content": [
-                            {"type": "image", "image": sample["frames_file_names"][0]},
-                            {"type": "image", "image": sample["frames_file_names"][1]},
-                            {"type": "text", "text": question}
-        ]},
-        {
-            "role": "assistant",
-            "content": [{"type": "text", "text": sample["label"]}],
-        },
-    ]
- 
+    if task == "visibility":
+        return [
+            {"role": "system", "content": [{"type": "text", "text": "You are a helpful assistant."}]},
+            {"role": "user", "content": [
+                                {"type": "image", "image": sample["frames_file_names"][0]},
+                                {"type": "image", "image": sample["frames_file_names"][1]},
+                                {"type": "text", "text": question_visibility}
+            ]},
+            {
+                "role": "assistant",
+                "content": [{"type": "text", "text": sample["label"]}],
+            },
+        ]
+    elif task == "placement":
+        return [
+            {"role": "system", "content": [{"type": "text", "text": "You are a helpful assistant."}]},
+            {"role": "user", "content": [
+                                {"type": "image", "image": sample["frames_file_names"][0]},
+                                {"type": "image", "image": sample["frames_file_names"][1]},
+                                {"type": "image", "image": sample["frames_file_names"][2]},
+                                {"type": "text", "text": question_placement}
+            ]},
+            {
+                "role": "assistant",
+                "content": [{"type": "text", "text": sample["label"]}],
+            },
+        ]
+    else:
+        raise ValueError("Incorrect task entered.")
+        
 def load_data(train_path, test_path):
     data_files = {"train": train_path, "test": test_path}
     dataset = load_dataset("json", data_files=data_files)
     print("Successfully loaded dataset")
     return dataset 
 
-def preprocess_data(train_dataset, test_dataset):
-    train_dataset = [format_data(sample) for sample in train_dataset]
-    test_dataset = [format_data(sample) for sample in test_dataset]
+def preprocess_data(task, train_dataset, test_dataset):
+    train_dataset = [format_data(task, sample) for sample in train_dataset]
+    test_dataset = [format_data(task, sample) for sample in test_dataset]
     return train_dataset, test_dataset
 
 def clear_memory():
@@ -329,23 +385,26 @@ def parse_args():
         Parsed arguments including dataset paths, config path, output directory, model id, and run name.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train_path", type=str, default="data/train-task-2.jsonl")
-    parser.add_argument("--test_path", type=str, default="data/test-task-2.jsonl")
+    parser.add_argument("--task", type=str, default="visibility")
+    parser.add_argument("--train_path", type=str, default="data/train-visibility.jsonl")
+    parser.add_argument("--test_path", type=str, default="data/test-visibility.jsonl")
     parser.add_argument("--config_path", type=str, default="src/training/training.yml")
     parser.add_argument("--output_dir", type=str, default="output")
     parser.add_argument("--model_id", type=str, default="Qwen/Qwen2.5-VL-32B-Instruct")
     parser.add_argument("--run_name", type=str, default="default-run")
-    parser.add_argument("--min_patches", type=int, default=16)
-    parser.add_argument("--max_patches", type=int, default=32)
+    parser.add_argument("--min_patches", type=int, default=4)
+    parser.add_argument("--max_patches", type=int, default=8)
     parser.add_argument("--lora_rank", type=int, default=8)
     return parser.parse_args()
 
-def get_data(train_path, test_path):
+def get_data(task, train_path, test_path):
     """
     Loads and preprocesses training and test datasets.
 
     Parameters
     ----------
+    task: str
+        Visibility or placement task
     train_path: str
         File path to the training dataset.
     test_path: str
@@ -361,7 +420,7 @@ def get_data(train_path, test_path):
     dataset = load_data(train_path, test_path)
     train_dataset = dataset["train"]
     test_dataset = dataset["test"]
-    train_dataset, test_dataset = preprocess_data(train_dataset, test_dataset)
+    train_dataset, test_dataset = preprocess_data(task, train_dataset, test_dataset)
     return train_dataset, test_dataset
 
 
@@ -419,6 +478,7 @@ def train(model_id, run_name, train_dataset, test_dataset, config_path, min_patc
 def main():
     """Main training pipeline"""
     args = parse_args()
+    task = args.task
     train_path = args.train_path
     test_path = args.test_path
     config_path = args.config_path
@@ -429,7 +489,7 @@ def main():
     max_patches = args.max_patches
     lora_rank = args.lora_rank
 
-    train_dataset, test_dataset = get_data(train_path, test_path)
+    train_dataset, test_dataset = get_data(task, train_path, test_path)
     train(model_id, run_name, train_dataset, test_dataset, config_path, min_patches, max_patches, lora_rank)
     
 if __name__ == "__main__":
