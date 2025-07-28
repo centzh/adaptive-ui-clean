@@ -16,7 +16,7 @@ import ipdb
 from sklearn.model_selection import train_test_split
 from PIL import Image
 from detectors import SaliencyDetector
-from instance_gen import InstanceGenerator
+from gen_instance import InstanceGenerator
 from seed import set_seed
 from pathlib import Path
 import argparse

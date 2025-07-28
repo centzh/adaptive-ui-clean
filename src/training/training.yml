@@ -1,0 +1,83 @@
+# Directory to save the model
+# https://github.com/QwenLM/Qwen2.5-VL/tree/main/qwen-vl-finetune
+output_dir: "./outputs"
+
+# Number of training epochs
+num_train_epochs: 3
+
+# Batch size for training
+per_device_train_batch_size: 2
+
+# Batch size for evaluation
+per_device_eval_batch_size: 1
+
+# Steps to accumulate gradients (effective batch size multiplier - more stable gradients, but same computational cost)
+gradient_accumulation_steps: 10
+
+# Enable gradient checkpointing for memory efficiency
+gradient_checkpointing: true
+
+# Optimizer type (same as original training)
+optim: "adamw_torch_fused"
+
+# Learning rate for training (0.0002)
+learning_rate: 0.0002
+
+# Type of learning rate scheduler
+lr_scheduler_type: "constant"
+
+# Number of update steps between two logs
+logging_steps: 10
+
+# Number of update steps between two evaluations
+eval_steps: 100
+
+# Strategy for evaluation
+eval_strategy: "steps"
+
+# Strategy for saving the model
+save_strategy: "steps"
+
+# Number of update steps between two checkpoint saves
+save_steps: 100
+
+# Metric to evaluate the best model
+metric_for_best_model: "eval_loss"
+
+# Whether higher metric values are better
+greater_is_better: false
+
+# Load the best model after training
+load_best_model_at_end: true
+
+# Use bfloat16 precision
+bf16: true
+
+# Use TensorFloat-32 precision
+tf32: true
+
+# Maximum norm for gradient clipping
+max_grad_norm: 0.3
+
+# Ratio of total steps for warmup (same as original training)
+warmup_ratio: 0.03
+
+# Whether to push model to Hugging Face Hub
+push_to_hub: true
+
+# Reporting tool for tracking metrics
+report_to: "wandb"
+
+# Options for gradient checkpointing
+gradient_checkpointing_kwargs:
+  use_reentrant: false
+
+# Text field in dataset
+dataset_text_field: ""
+
+# Additional dataset options
+dataset_kwargs:
+  skip_prepare_dataset: true
+
+# Keep unused columns in dataset
+remove_unused_columns: false

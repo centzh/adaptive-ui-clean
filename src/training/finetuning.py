@@ -1,5 +1,3 @@
-from datasets import load_dataset
-import gc
 import time
 import torch
 import ipdb
@@ -13,6 +11,9 @@ import yaml
 import argparse
 from transformers import EarlyStoppingCallback
 os.environ["WANDB_MODE"] = "online"
+from src.utils.load_dataset import get_data
+from src.utils.manage_gpu_memory import clear_memory
+from src.utils.load_model import load_model, get_processor
  
 from transformers import (
     AutoModelForCausalLM,
@@ -27,69 +28,6 @@ seed = 0
 random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
-
-question_visibility = (
-    "You are shown two identical images from a head‑mounted camera:\n"
-    "- Image 1 is the original camera view.\n"
-    "- Image 2 is the same view but with a UI element overlayed on part of the scene.\n"
-    "\n"
-    "Step 1: What does the UI element cover?\n"
-    "'Covers' means the element hides part of an object from view. If the object is fully visible around the element, it is not covered.\n"
-    "Answer format: The element covers [object/area].\n"
-    "\n"
-    "Step 2: Answer each question with 'yes' or 'no':\n"
-    "- Does the element cover something the user is using, about to use, or interacting with?\n"
-    "- Does the element cover the floor, doors, windows or signs?\n"
-    "- Does the element cover people's faces or bodies?\n"
-    "- Does the element cover an area of high colour intensity or edge contrast?\n"
-    "IMPORTANT RULE:\n"
-    "- If **any** answer in Step 2 is 'yes' → FINAL ANSWER: No, remove the element.\n"
-    "- If **all** answers in Step 2 are 'no' → FINAL ANSWER: Yes, keep the element.\n"
-    "\n"
-    "STRICT FORMAT:\n"
-    "Step 1: [Your answer here]\n"
-    "Step 2:\n"
-    "- Covers floor/doors/windows/signs: [yes/no]\n"
-    "- Covers people: [yes/no]\n"
-    "- Covers high‑contrast or high‑colour‑intensity area: [yes/no]\n"
-    "FINAL ANSWER: [Yes, keep the element | No, remove the element]"
-)
-
-
-question_placement = (
-    "You are shown three identical images from a head-mounted camera:\n"
-    "- Image 1 is the original camera view.\n"
-    "- Image 2 is the same view with a UI element overlayed in one part of the scene.\n"
-    "- Image 3 is the same view with a UI element overlayed in a different part of the scene.\n"
-    "\n"
-    "Step 1: What do the UI elements in Image 2 and Image 3 cover?\n"
-    "An element 'covers' an object if it hides any part of it from view. If the object is fully visible around the element, it is not considered covered.\n"
-    "Answer format: In Image 2, the element covers [object/area]. In Image 3, the element covers [object/area].\n"
-    "\n"
-    "Step 2: For each image, answer the following four yes/no questions about the UI element in that image:\n"
-    "1. Does the element cover something the user is using, about to use, or interacting with?\n"
-    "2. Does the element cover the floor, doors, windows, or signs?\n"
-    "3. Does the element cover people's faces or bodies?\n"
-    "4. Does the element cover an area of high colour intensity or edge contrast?\n"
-    "\n"
-    "Then, compare the total number of 'yes' answers between the two images.\n"
-    "- If Image 2 has fewer 'yes' answers, answer 1 (left).\n"
-    "- If Image 3 has fewer 'yes' answers, answer 2 (right).\n"
-    "\n"
-    "STRICT FORMAT:\n"
-    "Step 1: In Image 2, the element covers [...]. In Image 3, the element covers [...].\n"
-    "Step 2 (Image 2):\n"
-    "- Covers something used/interacted with: [yes/no]\n"
-    "- Covers floor/doors/windows/signs: [yes/no]\n"
-    "- Covers people: [yes/no]\n"
-    "- Covers high-contrast or high-colour-intensity area: [yes/no]\n"
-    "Step 2 (Image 3):\n"
-    "- Covers something used/interacted with: [yes/no]\n"
-    "- Covers floor/doors/windows/signs: [yes/no]\n"
-    "- Covers people: [yes/no]\n"
-    "- Covers high-contrast or high-colour-intensity area: [yes/no]\n"
-    "FINAL ANSWER: [1 | 2]"
-)
 
 
 def get_peft_config(lora_rank, lora_alpha=16, lora_dropout=0.05):
@@ -180,83 +118,6 @@ def get_training_args(config_path: str):
     training_args = SFTConfig(**config_dict)
     return training_args
 
-
-def format_data(task, sample):
-    """
-    Formats a data sample into the chat-based input-output structure for the model.
-
-    Parameters
-    ----------
-    task: str
-        Visibility or placement task
-    sample: dict
-        Raw sample containing 'frames_file_names' and 'label'.
-
-    Returns
-    -------
-    formatted_sample: list
-        List of roles and content dictionaries structured for training.
-    """
-    if task == "visibility":
-        return [
-            {"role": "system", "content": [{"type": "text", "text": "You are a helpful assistant."}]},
-            {"role": "user", "content": [
-                                {"type": "image", "image": sample["frames_file_names"][0]},
-                                {"type": "image", "image": sample["frames_file_names"][1]},
-                                {"type": "text", "text": question_visibility}
-            ]},
-            {
-                "role": "assistant",
-                "content": [{"type": "text", "text": sample["label"]}],
-            },
-        ]
-    elif task == "placement":
-        return [
-            {"role": "system", "content": [{"type": "text", "text": "You are a helpful assistant."}]},
-            {"role": "user", "content": [
-                                {"type": "image", "image": sample["frames_file_names"][0]},
-                                {"type": "image", "image": sample["frames_file_names"][1]},
-                                {"type": "image", "image": sample["frames_file_names"][2]},
-                                {"type": "text", "text": question_placement}
-            ]},
-            {
-                "role": "assistant",
-                "content": [{"type": "text", "text": sample["label"]}],
-            },
-        ]
-    else:
-        raise ValueError("Incorrect task entered.")
-        
-def load_data(train_path, test_path):
-    data_files = {"train": train_path, "test": test_path}
-    dataset = load_dataset("json", data_files=data_files)
-    print("Successfully loaded dataset")
-    return dataset 
-
-def preprocess_data(task, train_dataset, test_dataset):
-    train_dataset = [format_data(task, sample) for sample in train_dataset]
-    test_dataset = [format_data(task, sample) for sample in test_dataset]
-    return train_dataset, test_dataset
-
-def clear_memory():
-    """
-    Clears GPU memory and deletes specified global variables if they exist.
-    """
-    var_names = ["inputs", "model", "processor", "trainer", "peft_model"]
-    # Delete variables from the global scope
-    for var in var_names:
-        if var in globals():
-            del globals()[var]
-
-    # Garbage collection and clearing CUDA memory
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-        print(f"GPU allocated memory: {torch.cuda.memory_allocated() / 1024**3:.2f} GB")
-        print(f"GPU reserved memory: {torch.cuda.memory_reserved() / 1024**3:.2f} GB")
-    else:
-        print("CUDA not available - using CPU")
-
 def create_collate_fn(processor):
     """
     Creates a collate function with access to the processor.
@@ -312,25 +173,7 @@ def create_collate_fn(processor):
         return batch
     
     return collate_fn
-
-# Load this from zero-shot.py later
-def load_model(model_id: str):
-
-    print(f"Loading {model_id}")
-    if "Qwen2.5-VL" in model_id:
-        model_class = Qwen2_5_VLForConditionalGeneration
-    else:
-        raise ValueError(f"Unsupported model identifier: {model_id}")
-    
-    model = model_class.from_pretrained(
-        model_id,
-        torch_dtype=torch.bfloat16,
-        device_map="auto",
-    )
-
-    print(f"Successfully loaded {model_id} for inference")
-    return model
-
+ 
 def connect_w_and_b(training_args, run_name):
     """
     Initialises a Weights & Biases run with the given configuration.
@@ -348,33 +191,6 @@ def connect_w_and_b(training_args, run_name):
         config=training_args,
     )
 
-def get_processor(model_id, min_patches, max_patches, patch_size=28):
-    """
-    Loads and returns the processor for the given model with patch size settings.
-
-    Parameters
-    ----------
-    model_id: str
-        Identifier of the model for which to load the processor.
-    min_patches: int, optional
-        Minimum number of patches to process.
-    max_patches: int, optional
-        Maximum number of patches to process.
-    patch_size: int, optional
-        Size of each patch.
-
-    Returns
-    -------
-    processor: AutoProcessor
-        Processor configured for the model.
-    """
-    processor = AutoProcessor.from_pretrained(
-        model_id, 
-        min_pixels = min_patches * patch_size * patch_size, 
-        max_pixels = max_patches * patch_size * patch_size
-    )
-    return processor
-
 def parse_args():
     """
     Parses command-line arguments for the training script.
@@ -390,39 +206,12 @@ def parse_args():
     parser.add_argument("--test_path", type=str, default="data/test-visibility.jsonl")
     parser.add_argument("--config_path", type=str, default="src/training/training.yml")
     parser.add_argument("--output_dir", type=str, default="output")
-    parser.add_argument("--model_id", type=str, default="Qwen/Qwen2.5-VL-32B-Instruct")
+    parser.add_argument("--model_id", type=str, default="Qwen/Qwen2.5-VL-7B-Instruct-AWQ")
     parser.add_argument("--run_name", type=str, default="default-run")
     parser.add_argument("--min_patches", type=int, default=4)
     parser.add_argument("--max_patches", type=int, default=8)
     parser.add_argument("--lora_rank", type=int, default=8)
     return parser.parse_args()
-
-def get_data(task, train_path, test_path):
-    """
-    Loads and preprocesses training and test datasets.
-
-    Parameters
-    ----------
-    task: str
-        Visibility or placement task
-    train_path: str
-        File path to the training dataset.
-    test_path: str
-        File path to the test dataset.
-
-    Returns
-    -------
-    train_dataset: list
-        Preprocessed training dataset.
-    test_dataset: list
-        Preprocessed test dataset.
-    """
-    dataset = load_data(train_path, test_path)
-    train_dataset = dataset["train"]
-    test_dataset = dataset["test"]
-    train_dataset, test_dataset = preprocess_data(task, train_dataset, test_dataset)
-    return train_dataset, test_dataset
-
 
 def train(model_id, run_name, train_dataset, test_dataset, config_path, min_patches, max_patches, lora_rank):
     """
