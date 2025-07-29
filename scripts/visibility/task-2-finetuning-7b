@@ -1,0 +1,56 @@
+#!/bin/bash
+#
+# SLURM job script for Wilkes3 (A100 GPU)
+#
+
+################### MODIFY THESE OPTIONS ######################
+
+#SBATCH -J datasetgen-job                     # Job name
+#SBATCH -A MLMI-vz237-SL2-GPU                 # Your project allocation
+#SBATCH --nodes=1                             # Number of nodes
+#SBATCH --ntasks=1                            # Number of MPI tasks (keep as 1 for single-GPU)
+#SBATCH --gres=gpu:1                          # Request 1 GPU
+#SBATCH --time=1:00:00                        # Max wallclock time 
+#SBATCH --mail-type=NONE                      # Email notifications (NONE, BEGIN, END, FAIL)
+#SBATCH -p ampere                             # Partition to use (Ampere = A100)
+
+################### ENVIRONMENT SETUP #########################
+
+. /etc/profile.d/modules.sh                   # Enables `module` command
+module purge                                  # Clean up modules
+module load rhel8/default-amp                 # Required base environment for Wilkes3
+
+# Activate your conda environment
+source /home/${USER}/.bashrc
+source /home/${USER}/miniforge3/bin/activate
+mamba activate "/home/${USER}/rds/hpc-work/conda_envs/adaptive-ui-clean"
+
+################### APPLICATION SETUP #########################
+
+# Python script to run
+model_id="Qwen/Qwen2.5-VL-7B-Instruct"
+application="python -u /home/vz237/rds/hpc-work/adaptive-ui-clean/src/training/finetuning.py --model_id \"$model_id\""
+
+# Directory where job is submitted from
+workdir="$SLURM_SUBMIT_DIR"
+
+# Set OpenMP threads (not critical here, but safe to keep)
+export OMP_NUM_THREADS=1
+
+################### RUN THE JOB ###############################
+
+cd $workdir
+echo "Changed directory to $(pwd)."
+mkdir -p logs
+JOBID=$SLURM_JOB_ID
+
+CMD="$application > logs/out.$JOBID"
+
+echo "JobID: $JOBID"
+echo "Time: $(date)"
+echo "Running on: $(hostname)"
+echo "Current directory: $(pwd)"
+echo "Command:"
+echo "$CMD"
+
+eval $CMD

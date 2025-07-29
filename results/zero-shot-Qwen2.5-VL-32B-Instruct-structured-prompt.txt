@@ -1,0 +1,4 @@
+=== Evaluation Report ===
+Accuracy : 0.6700
+Precision: 0.6076
+Recall   : 0.5783

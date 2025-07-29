@@ -1,5 +1,18 @@
+question_visibility_simple = (
+    "You are shown two identical images from a head-mounted camera:\n"
+    "- Image 1 is the original camera view.\n"
+    "- Image 2 is the same view but with a UI element overlayed on part of the scene.\n"
+    "\n"
+    "Determine whether the UI element should be kept or removed. "
+    "The UI element should be removed if it covers what the user is using, about to use, or interacting with, "
+    "floor, doors, windows or signs, people's faces or bodies, or areas of high colour intensity or edge contrast. "
+    "Otherwise, it should be kept.\n"
+    "\n"
+    "FINAL ANSWER: [Yes, keep the element | No, remove the element]"
+)
 
-question_visibility = (
+
+question_visibility_structured = (
     "You are shown two identical images from a head‑mounted camera:\n"
     "- Image 1 is the original camera view.\n"
     "- Image 2 is the same view but with a UI element overlayed on part of the scene.\n"
@@ -27,7 +40,45 @@ question_visibility = (
 )
 
 
-question_placement = (
+question_visibility_structured_with_few_shot = (
+    "You are shown two identical images from a head‑mounted camera:\n"
+    "- Image 1 is the original camera view.\n"
+    "- Image 2 is the same view but with a UI element overlayed on part of the scene.\n"
+    "\n"
+    "Step 1: What does the UI element cover?\n"
+    "'Covers' means the element hides part of an object from view. If the object is fully visible around the element, it is not covered.\n"
+    "Answer format: The element covers [object/area].\n"
+    "\n"
+    "Step 2: Answer each question with 'yes' or 'no':\n"
+    "- Does the element cover something the user is using, about to use, or interacting with?\n"
+    "- Does the element cover the floor, doors, windows or signs?\n"
+    "- Does the element cover people's faces or bodies?\n"
+    "- Does the element cover an area of high colour intensity or edge contrast?\n"
+    "\n"
+    "IMPORTANT RULE:\n"
+    "- If **any** answer in Step 2 is 'yes' → FINAL ANSWER: No, remove the element.\n"
+    "- If **all** answers in Step 2 are 'no' → FINAL ANSWER: Yes, keep the element.\n"
+    "\n"
+    "STRICT FORMAT:\n"
+    "Step 1: [Your answer here]\n"
+    "Step 2:\n"
+    "- Covers user interaction objects: [yes/no]\n"
+    "- Covers floor/doors/windows/signs: [yes/no]\n"
+    "- Covers people: [yes/no]\n"
+    "- Covers high‑contrast or high‑colour‑intensity area: [yes/no]\n"
+    "FINAL ANSWER: [Yes, keep the element | No, remove the element]\n"
+    "\n"
+    "Example answer:\n"
+    "Step 1: The element covers part of a door handle.\n"
+    "Step 2:\n"
+    "- Covers user interaction objects: yes\n"
+    "- Covers floor/doors/windows/signs: yes\n"
+    "- Covers people: no\n"
+    "- Covers high‑contrast or high‑colour‑intensity area: no\n"
+    "FINAL ANSWER: No, remove the element."
+)
+
+question_placement_structured = (
     "You are shown three identical images from a head-mounted camera:\n"
     "- Image 1 is the original camera view.\n"
     "- Image 2 is the same view with a UI element overlayed in one part of the scene.\n"

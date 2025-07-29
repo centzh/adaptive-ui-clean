@@ -92,7 +92,6 @@ def get_trainer(model, training_args, train_dataset, eval_dataset, data_collator
         data_collator=data_collator,
         peft_config=peft_config,
         processing_class=processing_class,
-        # FIX THIS
         callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
 
     )

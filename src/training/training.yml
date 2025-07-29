@@ -30,7 +30,7 @@ lr_scheduler_type: "constant"
 logging_steps: 10
 
 # Number of update steps between two evaluations
-eval_steps: 100
+eval_steps: 10
 
 # Strategy for evaluation
 eval_strategy: "steps"
