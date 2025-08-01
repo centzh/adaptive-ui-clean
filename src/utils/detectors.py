@@ -19,6 +19,13 @@ from ultralytics import YOLO, RTDETR
 from transformers import pipeline
 import cv2
 from pathlib import Path
+import ipdb
+
+MAP_COLORS = {
+        'safety': (255, 99, 132),        # Soft red/pink
+        'aesthetics': (54, 162, 235),    # Soft blue
+        'functionality': (255, 206, 86), # Warm yellow
+}
  
 class SaliencyDetector:
     def __init__(self,
@@ -120,6 +127,7 @@ class SaliencyDetector:
         w, h = frame.size
 
         functionality_map = np.zeros((h, w), dtype=np.uint8)
+        #ipdb.set_trace()
 
         # No objects detected
         if obj_coords is None or len(obj_coords) == 0:
@@ -129,12 +137,14 @@ class SaliencyDetector:
         video_id = SaliencyDetector._get_video_id(frame_path)
         frame_id = SaliencyDetector._get_frame_id(frame_path)
         gaze_x, gaze_y = SaliencyDetector._get_eye_gaze_loc(eye_gazes, video_id, frame_id)
+        #ipdb.set_trace()
         if gaze_x is None and gaze_y is None:
             return functionality_map
 
         # Find object (midpoint) that is closest to the gaze point (1/4 of image width, by default)
-        distance_thresh = w//4
+        distance_thresh = w // 4 # CHANGE BACK to w//4
         closest_object = SaliencyDetector._find_closest_object(obj_coords, (gaze_x, gaze_y), distance_thresh)
+        #ipdb.set_trace()
 
         # Closest object was located at a distance greater than the threshold 
         if closest_object is None:
@@ -143,11 +153,87 @@ class SaliencyDetector:
         # Mark the bounding box of the closest object as white, representing to avoid
         x1, y1, x2, y2 = closest_object
         functionality_map[y1:y2, x1:x2] = 255
+        #ipdb.set_trace()
         return functionality_map
     
     def save_map(self, saliency_map: np.ndarray, save_path: str):
         img = Image.fromarray(saliency_map)
         img.save(save_path)
+   
+    def save_colored_map(self, sal_map: np.ndarray, save_path: str, color: tuple):
+        """
+        Save a binary/intensity saliency map as a transparent color overlay.
+
+        Parameters
+        ----------
+        map_array : np.ndarray
+            2D saliency map (binary or intensity).
+        save_path : str
+            Output path to save the image.
+        color : tuple
+            RGB color as (R, G, B).
+        alpha : int
+            Transparency value (0 to 255).
+        """
+        h, w = sal_map.shape
+
+        if sal_map.dtype != np.uint8:
+            norm_map = ((sal_map - sal_map.min()) / (sal_map.ptp() + 1e-8) * 255).astype(np.uint8)
+        else:
+            norm_map = sal_map
+
+        gray_img = Image.fromarray(norm_map, mode='L')
+        color_img = Image.new('RGBA', (w, h), color)
+        color_img.putalpha(gray_img)
+        color_img.save(save_path)
+
+    def save_combined_map(self, maps: dict, save_path: str, use_color_overlay: bool = False):
+        """
+        Save a combined saliency map showing all maps.
+        
+        Parameters
+        ----------
+        maps : dict
+            Dictionary of saliency maps. Keys are map names, values are 2D np.arrays (binary or grayscale).
+        save_path : str
+            Path to save the combined image.
+        use_color_overlay : bool, optional (default False)
+            If True, overlay each map in a distinct RGBA color with transparency.
+            Otherwise, combine as grayscale by summing and clipping.
+        """
+        map_shape = next(iter(maps.values())).shape
+        h, w = map_shape
+
+        if use_color_overlay:
+            combined_img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+
+            for key, sal_map in maps.items():
+                if key not in MAP_COLORS:
+                    continue
+                # Normalize map
+                if sal_map.dtype != np.uint8:
+                    norm_map = ((sal_map - sal_map.min()) / (sal_map.ptp() + 1e-8) * 255).astype(np.uint8)
+                else:
+                    norm_map = sal_map
+
+                gray_img = Image.fromarray(norm_map, mode='L')
+                color_img = Image.new('RGBA', (w, h), MAP_COLORS[key])
+                color_img.putalpha(gray_img)
+
+                combined_img = Image.alpha_composite(combined_img, color_img)
+
+            combined_img.save(save_path)
+        else:
+            combined_map = np.zeros(map_shape, dtype=np.uint8)
+            for sal_map in maps.values():
+                if sal_map.dtype != np.uint8:
+                    norm_map = ((sal_map - sal_map.min()) / (sal_map.ptp() + 1e-8) * 255).astype(np.uint8)
+                else:
+                    norm_map = sal_map
+                combined_map = np.clip(combined_map + norm_map, 0, 255)
+
+            combined_img = Image.fromarray(combined_map, mode='L')
+            combined_img.save(save_path)
 
     def get_combined_map(self, frame, frame_path, eye_gazes):
         """
@@ -235,13 +321,42 @@ class SaliencyDetector:
         
         return [int(coord.item()) for coord in closest_bbox]
  
-# Example usage
+
 if __name__ == "__main__":
     detector = SaliencyDetector()
 
-    frame_path = Path("data") / "video_frames" / "loc3_script1_seq7_rec1" / "frame-510.jpg"
-    frame = Image.open(frame_path)
     eye_gaze_path = Path("data") / "eye_gaze_coords.csv"
     eye_gazes = pd.read_csv(eye_gaze_path)
-    combined_map = detector.get_combined_map(frame, frame_path, eye_gazes)
-    detector.save_map(combined_map, "combined.png")
+
+    # List of frame paths to process
+    frame_paths = [
+        "data/video_frames/loc3_script2_seq7_rec1/frame-10.jpg",
+        "data/video_frames/loc2_script1_seq5_rec1/frame-780.jpg",
+        "data/video_frames/loc3_script3_seq4_rec2/frame-1320.jpg",
+    ]
+
+    for frame_path_str in frame_paths:
+        frame_path = Path(frame_path_str)
+        frame = Image.open(frame_path)
+
+        # Create saliency maps
+        functionality_map = detector.get_functionality_map(frame, frame_path, eye_gazes)
+        aesthetics_map = detector.get_aesthetics_map(frame)
+        safety_and_social_acceptability_map = detector.get_safety_and_social_acceptability_map(frame)
+        combined_map = detector.get_combined_map(frame, frame_path, eye_gazes)
+
+        # Generate a unique identifier for saving
+        identifier = frame_path.parent.name + "_" + frame_path.stem
+
+        # Save each color map
+        detector.save_colored_map(functionality_map, f"figures/{identifier}_functionality.png", MAP_COLORS['functionality'])
+        detector.save_colored_map(aesthetics_map, f"figures/{identifier}_aesthetics.png", MAP_COLORS['aesthetics'])
+        detector.save_colored_map(safety_and_social_acceptability_map, f"figures/{identifier}_safety_social.png", MAP_COLORS['safety'])
+
+        # Save combined map with color overlay
+        maps = {
+            "safety": safety_and_social_acceptability_map,
+            "aesthetics": aesthetics_map,
+            "functionality": functionality_map
+        }
+        detector.save_combined_map(maps, f"figures/{identifier}_combined_color.png", use_color_overlay=True)
