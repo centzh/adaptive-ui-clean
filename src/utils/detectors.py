@@ -15,7 +15,7 @@ Usage:
 import numpy as np
 from PIL import Image
 import pandas as pd
-from ultralytics import YOLO, RTDETR
+from ultralytics import YOLO
 from transformers import pipeline
 import cv2
 from pathlib import Path
@@ -127,7 +127,6 @@ class SaliencyDetector:
         w, h = frame.size
 
         functionality_map = np.zeros((h, w), dtype=np.uint8)
-        #ipdb.set_trace()
 
         # No objects detected
         if obj_coords is None or len(obj_coords) == 0:
@@ -137,14 +136,13 @@ class SaliencyDetector:
         video_id = SaliencyDetector._get_video_id(frame_path)
         frame_id = SaliencyDetector._get_frame_id(frame_path)
         gaze_x, gaze_y = SaliencyDetector._get_eye_gaze_loc(eye_gazes, video_id, frame_id)
-        #ipdb.set_trace()
+
         if gaze_x is None and gaze_y is None:
             return functionality_map
 
         # Find object (midpoint) that is closest to the gaze point (1/4 of image width, by default)
         distance_thresh = w // 4 # CHANGE BACK to w//4
         closest_object = SaliencyDetector._find_closest_object(obj_coords, (gaze_x, gaze_y), distance_thresh)
-        #ipdb.set_trace()
 
         # Closest object was located at a distance greater than the threshold 
         if closest_object is None:
@@ -153,7 +151,6 @@ class SaliencyDetector:
         # Mark the bounding box of the closest object as white, representing to avoid
         x1, y1, x2, y2 = closest_object
         functionality_map[y1:y2, x1:x2] = 255
-        #ipdb.set_trace()
         return functionality_map
     
     def save_map(self, saliency_map: np.ndarray, save_path: str):
@@ -183,9 +180,18 @@ class SaliencyDetector:
             norm_map = sal_map
 
         gray_img = Image.fromarray(norm_map, mode='L')
-        color_img = Image.new('RGBA', (w, h), color)
+        color_img = Image.new('RGBA', (w, h), color)   
         color_img.putalpha(gray_img)
-        color_img.save(save_path)
+
+        # Create black background (fully opaque)
+        black_bg = Image.new('RGBA', (w, h), (0, 0, 0, 255))
+
+        # Paste the colored image with alpha over black background
+        black_bg.paste(color_img, (0, 0), color_img)
+
+        # Save the final image with black background and colored overlay
+        black_bg.save(save_path)
+
 
     def save_combined_map(self, maps: dict, save_path: str, use_color_overlay: bool = False):
         """
@@ -205,7 +211,7 @@ class SaliencyDetector:
         h, w = map_shape
 
         if use_color_overlay:
-            combined_img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+            combined_img = Image.new('RGBA', (w, h), (0, 0, 0, 255))
 
             for key, sal_map in maps.items():
                 if key not in MAP_COLORS:
@@ -349,9 +355,9 @@ if __name__ == "__main__":
         identifier = frame_path.parent.name + "_" + frame_path.stem
 
         # Save each color map
-        detector.save_colored_map(functionality_map, f"figures/{identifier}_functionality.png", MAP_COLORS['functionality'])
-        detector.save_colored_map(aesthetics_map, f"figures/{identifier}_aesthetics.png", MAP_COLORS['aesthetics'])
-        detector.save_colored_map(safety_and_social_acceptability_map, f"figures/{identifier}_safety_social.png", MAP_COLORS['safety'])
+        detector.save_map(functionality_map, f"figures/{identifier}_functionality_binary.png")
+        detector.save_map(aesthetics_map, f"figures/{identifier}_aesthetics_binary.png")
+        detector.save_map(safety_and_social_acceptability_map, f"figures/{identifier}_safety_social_binary.png")
 
         # Save combined map with color overlay
         maps = {
@@ -359,4 +365,4 @@ if __name__ == "__main__":
             "aesthetics": aesthetics_map,
             "functionality": functionality_map
         }
-        detector.save_combined_map(maps, f"figures/{identifier}_combined_color.png", use_color_overlay=True)
+        detector.save_map(combined_map, f"figures/{identifier}_combined.png")

@@ -1,19 +1,23 @@
-import time
-import torch
-import ipdb
-from trl import SFTConfig, SFTTrainer
-import wandb
-from peft import LoraConfig, get_peft_model
-import random
-import numpy as np
 import os
-import yaml
+import time
+import random
 import argparse
+import yaml
+import numpy as np
+import torch
+import wandb
+import ipdb
+
 from transformers import EarlyStoppingCallback
-os.environ["WANDB_MODE"] = "online"
+from trl import SFTConfig, SFTTrainer
+from peft import LoraConfig, get_peft_model
+
 from src.utils.load_dataset import get_data
 from src.utils.manage_gpu_memory import clear_memory
 from src.utils.load_model import load_model, get_processor
+
+# Ensure Weights & Biases runs online
+os.environ["WANDB_MODE"] = "online"
  
 from transformers import (
     AutoModelForCausalLM,

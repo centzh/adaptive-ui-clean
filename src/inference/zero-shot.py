@@ -1,3 +1,16 @@
+"""
+Zero-Shot Image-Text-to-Text Inference Script
+
+This module evaluates a multimodal model's ability to perform zero-shot classification
+on an image-text-to-text task, using a dataset of frames paired with textual queries.
+
+Intended Use:
+-------------
+This script is designed for rapid zero-shot evaluation of large multimodal models
+on custom datasets, without fine-tuning, to assess baseline performance before
+task-specific training.
+"""
+
 import json
 import torch
 from sklearn.metrics import accuracy_score, precision_score, recall_score
@@ -5,7 +18,6 @@ from src.utils.load_dataset import get_data
 from src.utils.seed import set_seed
 from transformers import pipeline
 import argparse
-import ipdb
 import random
 
 set_seed()

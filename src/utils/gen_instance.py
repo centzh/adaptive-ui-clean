@@ -62,8 +62,7 @@ class InstanceGenerator:
         
         # Overlay and save
         frame_arr = np.array(frame)
-        frame_arr = self.renderer.overlay(frame_arr, i, j)
-
+        frame_arr = self.renderer.overlay(frame_arr, i, j) 
         video_id = InstanceGenerator._get_video_id(frame_path)
         frame_id = InstanceGenerator._get_frame_id(frame_path)
 
@@ -279,7 +278,7 @@ class OverlayRenderer:
     
 if __name__ == "__main__":
     detector = SaliencyDetector()
-    frame_path = Path("data") / "video_frames" / "loc1_script1_seq1_rec1" / "frame-10.jpg"
+    frame_path = Path("data") / "video_frames" / "loc3_script2_seq7_rec1" / "frame-10.jpg"
     frame = Image.open(frame_path)
     eye_gaze_path = Path("data") / "eye_gaze_coords.csv"
     eye_gazes = pd.read_csv(eye_gaze_path)

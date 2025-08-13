@@ -1,8 +1,6 @@
 import torch
 from transformers import (
-    AutoModelForCausalLM,
     AutoProcessor,
-    AutoTokenizer,
     Qwen2_5_VLForConditionalGeneration,
     Gemma3ForConditionalGeneration,
     LlavaForConditionalGeneration
