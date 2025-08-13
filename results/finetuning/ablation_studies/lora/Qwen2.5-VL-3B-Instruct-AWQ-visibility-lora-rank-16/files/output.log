@@ -1,0 +1,50 @@
+Detected kernel version 4.18.0, which is below the recommended minimum of 5.5.0; this can cause the process to hang. It is recommended to upgrade the kernel to the minimum version or higher.
+No label_names provided for model class `PeftModelForCausalLM`. Since `PeftModel` hides base models input arguments, if label_names is not given, label_names can't be set automatically within `Trainer`. Note that empty label_names list will be used instead.
+wandb: WARNING The `run_name` is currently set to the same value as `TrainingArguments.output_dir`. If this was not intended, please specify a different run name by setting the `TrainingArguments.run_name` parameter.
+  0%|          | 0/100 [00:00<?, ?it/s]`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`...
+`loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
+100%|██████████| 100/100 [45:06<00:00, 11.19s/it]wandb: WARNING The get_url method is deprecated and will be removed in a future release. Please use `run.url` instead.
+{'loss': 32.6096, 'grad_norm': 8.55048656463623, 'learning_rate': 0.0002, 'num_tokens': 67400.0, 'mean_token_accuracy': 0.47402439057826995, 'epoch': 0.1}
+Traceback (most recent call last):               
+{'eval_loss': 2.3743717670440674, 'eval_runtime': 197.8477, 'eval_samples_per_second': 2.932, 'eval_steps_per_second': 2.932, 'eval_num_tokens': 67400.0, 'eval_mean_token_accuracy': 0.5751787096261978, 'epoch': 0.1}
+{'loss': 21.1881, 'grad_norm': 9.38795280456543, 'learning_rate': 0.0002, 'num_tokens': 134800.0, 'mean_token_accuracy': 0.6220731747150421, 'epoch': 0.2}
+{'eval_loss': 1.8170466423034668, 'eval_runtime': 167.9421, 'eval_samples_per_second': 3.454, 'eval_steps_per_second': 3.454, 'eval_num_tokens': 134800.0, 'eval_mean_token_accuracy': 0.6739802483854622, 'epoch': 0.2}
+{'loss': 15.6018, 'grad_norm': 14.972156524658203, 'learning_rate': 0.0002, 'num_tokens': 202200.0, 'mean_token_accuracy': 0.7202134138345718, 'epoch': 0.3}
+{'eval_loss': 1.2094473838806152, 'eval_runtime': 168.0217, 'eval_samples_per_second': 3.452, 'eval_steps_per_second': 3.452, 'eval_num_tokens': 202200.0, 'eval_mean_token_accuracy': 0.7738961136546628, 'epoch': 0.3}
+{'loss': 8.971, 'grad_norm': 14.132052421569824, 'learning_rate': 0.0002, 'num_tokens': 269600.0, 'mean_token_accuracy': 0.8411432904005051, 'epoch': 0.4}
+{'eval_loss': 0.5427258610725403, 'eval_runtime': 167.4005, 'eval_samples_per_second': 3.465, 'eval_steps_per_second': 3.465, 'eval_num_tokens': 269600.0, 'eval_mean_token_accuracy': 0.9149443004665704, 'epoch': 0.4}
+{'loss': 3.7686, 'grad_norm': 4.403618335723877, 'learning_rate': 0.0002, 'num_tokens': 337000.0, 'mean_token_accuracy': 0.9475457316637039, 'epoch': 0.5}
+{'eval_loss': 0.2285507172346115, 'eval_runtime': 167.9254, 'eval_samples_per_second': 3.454, 'eval_steps_per_second': 3.454, 'eval_num_tokens': 337000.0, 'eval_mean_token_accuracy': 0.9768923679302479, 'epoch': 0.5}
+{'loss': 1.8144, 'grad_norm': 1.7046053409576416, 'learning_rate': 0.0002, 'num_tokens': 404400.0, 'mean_token_accuracy': 0.9821341633796692, 'epoch': 0.6}
+{'eval_loss': 0.15224625170230865, 'eval_runtime': 167.3924, 'eval_samples_per_second': 3.465, 'eval_steps_per_second': 3.465, 'eval_num_tokens': 404400.0, 'eval_mean_token_accuracy': 0.9832054407432161, 'epoch': 0.6}
+{'loss': 1.4129, 'grad_norm': 1.058672308921814, 'learning_rate': 0.0002, 'num_tokens': 471800.0, 'mean_token_accuracy': 0.9831097722053528, 'epoch': 0.7}
+{'eval_loss': 0.12879396975040436, 'eval_runtime': 167.6202, 'eval_samples_per_second': 3.46, 'eval_steps_per_second': 3.46, 'eval_num_tokens': 471800.0, 'eval_mean_token_accuracy': 0.9832264667954939, 'epoch': 0.7}
+{'loss': 1.1679, 'grad_norm': 0.4700300991535187, 'learning_rate': 0.0002, 'num_tokens': 539200.0, 'mean_token_accuracy': 0.9854268431663513, 'epoch': 0.8}
+{'eval_loss': 0.10523402690887451, 'eval_runtime': 167.9605, 'eval_samples_per_second': 3.453, 'eval_steps_per_second': 3.453, 'eval_num_tokens': 539200.0, 'eval_mean_token_accuracy': 0.9863015269411022, 'epoch': 0.8}
+{'loss': 1.0287, 'grad_norm': 0.2621142864227295, 'learning_rate': 0.0002, 'num_tokens': 606600.0, 'mean_token_accuracy': 0.9861890375614166, 'epoch': 0.9}
+{'eval_loss': 0.1006351187825203, 'eval_runtime': 167.9151, 'eval_samples_per_second': 3.454, 'eval_steps_per_second': 3.454, 'eval_num_tokens': 606600.0, 'eval_mean_token_accuracy': 0.9863067834541716, 'epoch': 0.9}
+{'loss': 1.0003, 'grad_norm': 0.11981260031461716, 'learning_rate': 0.0002, 'num_tokens': 674000.0, 'mean_token_accuracy': 0.9862195253372192, 'epoch': 1.0}
+{'eval_loss': 0.09929976612329483, 'eval_runtime': 167.8117, 'eval_samples_per_second': 3.456, 'eval_steps_per_second': 3.456, 'eval_num_tokens': 674000.0, 'eval_mean_token_accuracy': 0.9862647313496162, 'epoch': 1.0}
+  File "/home/vz237/rds/hpc-work/adaptive-ui-clean/src/training/finetuning.py", line 284, in <module>
+    main()
+  File "/home/vz237/rds/hpc-work/adaptive-ui-clean/src/training/finetuning.py", line 281, in main
+    train(model_id, run_name, train_dataset, test_dataset, config_path, min_patches, max_patches, lora_rank)
+  File "/home/vz237/rds/hpc-work/adaptive-ui-clean/src/training/finetuning.py", line 262, in train
+    trainer.train()
+  File "/rds/user/vz237/hpc-work/conda_envs/adaptive-ui-clean/lib/python3.11/site-packages/transformers/trainer.py", line 2197, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/rds/user/vz237/hpc-work/conda_envs/adaptive-ui-clean/lib/python3.11/site-packages/transformers/trainer.py", line 2687, in _inner_training_loop
+    self._load_best_model()
+  File "/rds/user/vz237/hpc-work/conda_envs/adaptive-ui-clean/lib/python3.11/site-packages/transformers/trainer.py", line 2974, in _load_best_model
+    model.load_adapter(self.state.best_model_checkpoint, active_adapter)
+  File "/rds/user/vz237/hpc-work/conda_envs/adaptive-ui-clean/lib/python3.11/site-packages/peft/peft_model.py", line 1317, in load_adapter
+    adapters_weights = load_peft_weights(
+                       ^^^^^^^^^^^^^^^^^^
+  File "/rds/user/vz237/hpc-work/conda_envs/adaptive-ui-clean/lib/python3.11/site-packages/peft/utils/save_and_load.py", line 583, in load_peft_weights
+    adapters_weights = safe_load_file(filename, device=device)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/rds/user/vz237/hpc-work/conda_envs/adaptive-ui-clean/lib/python3.11/site-packages/safetensors/torch.py", line 313, in load_file
+    with safe_open(filename, framework="pt", device=device) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+safetensors_rust.SafetensorError: Error while deserializing header: MetadataIncompleteBuffer

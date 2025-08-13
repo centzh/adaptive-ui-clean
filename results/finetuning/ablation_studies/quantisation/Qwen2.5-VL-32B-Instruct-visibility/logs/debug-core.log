@@ -1,0 +1,14 @@
+{"time":"2025-08-01T19:58:20.362127714+01:00","level":"INFO","msg":"main: starting server","port-filename":"/tmp/tmp_vlyg86v/port-368351.txt","pid":368351,"log-level":0,"disable-analytics":false,"shutdown-on-parent-exit":false,"enable-dcgm-profiling":false}
+{"time":"2025-08-01T19:58:20.362797117+01:00","level":"INFO","msg":"server: will exit if parent process dies","ppid":368351}
+{"time":"2025-08-01T19:58:20.362749186+01:00","level":"INFO","msg":"server: accepting connections","addr":{"Name":"/tmp/wandb-368351-368675-3362566822/socket","Net":"unix"}}
+{"time":"2025-08-01T19:58:20.532910916+01:00","level":"INFO","msg":"connection: ManageConnectionData: new connection created","id":"1(@)"}
+{"time":"2025-08-01T19:58:20.692717002+01:00","level":"INFO","msg":"handleInformInit: received","streamId":"ad80jzm4","id":"1(@)"}
+{"time":"2025-08-01T19:58:21.181189128+01:00","level":"INFO","msg":"handleInformInit: stream started","streamId":"ad80jzm4","id":"1(@)"}
+{"time":"2025-08-01T21:01:47.562330419+01:00","level":"INFO","msg":"handleInformTeardown: server teardown initiated","id":"1(@)"}
+{"time":"2025-08-01T21:01:47.634212856+01:00","level":"INFO","msg":"connection: closing","id":"1(@)"}
+{"time":"2025-08-01T21:01:47.634288929+01:00","level":"INFO","msg":"server is shutting down"}
+{"time":"2025-08-01T21:01:47.636502687+01:00","level":"INFO","msg":"connection: closed successfully","id":"1(@)"}
+{"time":"2025-08-01T21:01:47.64965693+01:00","level":"INFO","msg":"server: listener closed","addr":{"Name":"/tmp/wandb-368351-368675-3362566822/socket","Net":"unix"}}
+{"time":"2025-08-01T21:01:48.999465015+01:00","level":"INFO","msg":"handleInformTeardown: server shutdown complete","id":"1(@)"}
+{"time":"2025-08-01T21:01:49.000068063+01:00","level":"INFO","msg":"connection: ManageConnectionData: connection closed","id":"1(@)"}
+{"time":"2025-08-01T21:01:49.000358541+01:00","level":"INFO","msg":"server is closed"}

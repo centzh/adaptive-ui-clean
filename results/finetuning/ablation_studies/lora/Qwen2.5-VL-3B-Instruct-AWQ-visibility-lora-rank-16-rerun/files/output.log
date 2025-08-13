@@ -1,0 +1,39 @@
+Detected kernel version 4.18.0, which is below the recommended minimum of 5.5.0; this can cause the process to hang. It is recommended to upgrade the kernel to the minimum version or higher.
+No label_names provided for model class `PeftModelForCausalLM`. Since `PeftModel` hides base models input arguments, if label_names is not given, label_names can't be set automatically within `Trainer`. Note that empty label_names list will be used instead.
+wandb: WARNING The `run_name` is currently set to the same value as `TrainingArguments.output_dir`. If this was not intended, please specify a different run name by setting the `TrainingArguments.run_name` parameter.
+  0%|          | 0/100 [00:00<?, ?it/s]`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`...
+`loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
+100%|██████████| 100/100 [50:49<00:00, 13.01s/it]wandb: WARNING The get_url method is deprecated and will be removed in a future release. Please use `run.url` instead.
+{'loss': 32.6047, 'grad_norm': 8.550968170166016, 'learning_rate': 0.0002, 'num_tokens': 67400.0, 'mean_token_accuracy': 0.47410060971975326, 'epoch': 0.1}
+100%|██████████| 100/100 [50:51<00:00, 30.51s/it]  
+{'eval_loss': 2.373596429824829, 'eval_runtime': 278.8856, 'eval_samples_per_second': 2.08, 'eval_steps_per_second': 2.08, 'eval_num_tokens': 67400.0, 'eval_mean_token_accuracy': 0.5750210141313488, 'epoch': 0.1}
+{'loss': 21.1873, 'grad_norm': 9.385934829711914, 'learning_rate': 0.0002, 'num_tokens': 134800.0, 'mean_token_accuracy': 0.6220731747150421, 'epoch': 0.2}
+{'eval_loss': 1.816557765007019, 'eval_runtime': 211.5945, 'eval_samples_per_second': 2.741, 'eval_steps_per_second': 2.741, 'eval_num_tokens': 134800.0, 'eval_mean_token_accuracy': 0.6739171702286293, 'epoch': 0.2}
+{'loss': 15.6029, 'grad_norm': 14.998149871826172, 'learning_rate': 0.0002, 'num_tokens': 202200.0, 'mean_token_accuracy': 0.7203658527135849, 'epoch': 0.3}
+{'eval_loss': 1.209238886833191, 'eval_runtime': 194.5972, 'eval_samples_per_second': 2.981, 'eval_steps_per_second': 2.981, 'eval_num_tokens': 202200.0, 'eval_mean_token_accuracy': 0.7741326561261868, 'epoch': 0.3}
+{'loss': 8.9789, 'grad_norm': 13.469830513000488, 'learning_rate': 0.0002, 'num_tokens': 269600.0, 'mean_token_accuracy': 0.8408384126424789, 'epoch': 0.4}
+{'eval_loss': 0.5461187362670898, 'eval_runtime': 168.7889, 'eval_samples_per_second': 3.436, 'eval_steps_per_second': 3.436, 'eval_num_tokens': 269600.0, 'eval_mean_token_accuracy': 0.9148391709245485, 'epoch': 0.4}
+{'loss': 3.7746, 'grad_norm': 4.768229007720947, 'learning_rate': 0.0002, 'num_tokens': 337000.0, 'mean_token_accuracy': 0.9474390250444412, 'epoch': 0.5}
+{'eval_loss': 0.22892293334007263, 'eval_runtime': 168.5765, 'eval_samples_per_second': 3.441, 'eval_steps_per_second': 3.441, 'eval_num_tokens': 337000.0, 'eval_mean_token_accuracy': 0.9768398029023203, 'epoch': 0.5}
+{'loss': 1.8144, 'grad_norm': 1.1565396785736084, 'learning_rate': 0.0002, 'num_tokens': 404400.0, 'mean_token_accuracy': 0.9820427000522614, 'epoch': 0.6}
+{'eval_loss': 0.15168866515159607, 'eval_runtime': 168.7408, 'eval_samples_per_second': 3.437, 'eval_steps_per_second': 3.437, 'eval_num_tokens': 404400.0, 'eval_mean_token_accuracy': 0.9832632623869797, 'epoch': 0.6}
+{'loss': 1.4052, 'grad_norm': 1.4223411083221436, 'learning_rate': 0.0002, 'num_tokens': 471800.0, 'mean_token_accuracy': 0.9830335527658463, 'epoch': 0.7}
+{'eval_loss': 0.12792202830314636, 'eval_runtime': 168.5926, 'eval_samples_per_second': 3.44, 'eval_steps_per_second': 3.44, 'eval_num_tokens': 471800.0, 'eval_mean_token_accuracy': 0.9831739016647997, 'epoch': 0.7}
+{'loss': 1.1598, 'grad_norm': 0.42579227685928345, 'learning_rate': 0.0002, 'num_tokens': 539200.0, 'mean_token_accuracy': 0.9856402575969696, 'epoch': 0.8}
+{'eval_loss': 0.10508929938077927, 'eval_runtime': 168.199, 'eval_samples_per_second': 3.448, 'eval_steps_per_second': 3.448, 'eval_num_tokens': 539200.0, 'eval_mean_token_accuracy': 0.9862384487842691, 'epoch': 0.8}
+{'loss': 1.0303, 'grad_norm': 0.27490440011024475, 'learning_rate': 0.0002, 'num_tokens': 606600.0, 'mean_token_accuracy': 0.986158549785614, 'epoch': 0.9}
+{'eval_loss': 0.10085787624120712, 'eval_runtime': 168.4206, 'eval_samples_per_second': 3.444, 'eval_steps_per_second': 3.444, 'eval_num_tokens': 606600.0, 'eval_mean_token_accuracy': 0.9862384487842691, 'epoch': 0.9}
+{'loss': 1.0014, 'grad_norm': 0.10042090713977814, 'learning_rate': 0.0002, 'num_tokens': 674000.0, 'mean_token_accuracy': 0.986356720328331, 'epoch': 1.0}
+{'eval_loss': 0.09938140213489532, 'eval_runtime': 168.325, 'eval_samples_per_second': 3.446, 'eval_steps_per_second': 3.446, 'eval_num_tokens': 674000.0, 'eval_mean_token_accuracy': 0.9862331922711998, 'epoch': 1.0}
+{'train_runtime': 3051.1703, 'train_samples_per_second': 0.655, 'train_steps_per_second': 0.033, 'train_loss': 8.85593828201294, 'epoch': 1.0}
+No files have been modified since last commit. Skipping to prevent empty commit.
+Traceback (most recent call last):
+  File "/home/vz237/rds/hpc-work/adaptive-ui-clean/src/training/finetuning.py", line 284, in <module>
+    main()
+  File "/home/vz237/rds/hpc-work/adaptive-ui-clean/src/training/finetuning.py", line 281, in main
+    train(model_id, run_name, train_dataset, test_dataset, config_path, min_patches, max_patches, lora_rank)
+  File "/home/vz237/rds/hpc-work/adaptive-ui-clean/src/training/finetuning.py", line 263, in train
+    trainer.push_to_hub(repo_name="adaptive-ui-clean")
+  File "/rds/user/vz237/hpc-work/conda_envs/adaptive-ui-clean/lib/python3.11/site-packages/transformers/trainer.py", line 4885, in push_to_hub
+    self.create_model_card(model_name=model_name, **kwargs)
+TypeError: SFTTrainer.create_model_card() got an unexpected keyword argument 'repo_name'
