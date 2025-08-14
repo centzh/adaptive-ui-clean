@@ -2,8 +2,6 @@
 
 This project investigates methods for **context-aware adaptation of mixed reality (MR) user interfaces**, with a focus on improving robustness and generalisation in complex and uncertain environments. The objective is to design UI systems that respond dynamically to the current context of use, optimising user experience across a wide range of real-world scenarios.
 
-Note: This project is a work in progress and subject to ongoing development.
-
 ## Introduction
 
 User interfaces in MR systems must account for a variety of contextual factors that can significantly influence usability. These include:
