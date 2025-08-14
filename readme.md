@@ -1,4 +1,4 @@
-# Adaptive Mixed Reality User Interfaces
+# Developing a Vision-Language-Action Model to Drive Contextual User Interface Adaptation
 
 This project investigates methods for **context-aware adaptation of mixed reality (MR) user interfaces**, with a focus on improving robustness and generalisation in complex and uncertain environments. The objective is to design UI systems that respond dynamically to the current context of use, optimising user experience across a wide range of real-world scenarios.
 
