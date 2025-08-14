@@ -21,15 +21,17 @@ Each of these dimensions introduces **contextual uncertainty**. Traditional, han
 - Investigate robustness to unseen environments, tasks, and user profiles
 - Support continual adaptation and deployment in dynamic settings.
 
-## Installation
+## Dataset
 
-We recommend using [Mamba](https://github.com/mamba-org/mamba) for efficient environment management.
+The dataset, containing visibility and placement task instances can be found [here](https://universityofcambridgecloud-my.sharepoint.com/:f:/g/personal/vz237_cam_ac_uk/Eh1sflOjWNBKnzDRQaPR9FIBiB2EX_btzbTV6EZP4WQj8w?e=JPlvKR).
+
+## Installation
 
 ```bash
 git clone https://github.com/centzh/adaptive-ui-clean.git
 cd adaptive-ui
-mamba env create -f environment.yml
-mamba activate adaptive-ui```
+conda env create -f environment.yml
+conda activate adaptive-ui```
 
 
 
